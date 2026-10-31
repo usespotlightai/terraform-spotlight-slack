@@ -196,3 +196,58 @@ run "refuses_an_integration_name_with_a_dash" {
 
   expect_failures = [var.integration]
 }
+
+run "reacts_with_eyes_by_default" {
+  command = plan
+
+  assert {
+    condition     = strcontains(spotlight_integration.this[0].definition.actions["acknowledge"].request.body, "\"name\": \"eyes\"") && spotlight_integration.this[0].definition.actions["acknowledge"].request.url == "https://slack.com/api/reactions.add"
+    error_message = "A mention gets the eyes reaction."
+  }
+
+  assert {
+    condition     = spotlight_integration.this[0].definition.on["task.opened"].action == "acknowledge" && !contains(keys(spotlight_integration.this[0].definition.on["task.opened"]), "routes")
+    error_message = "The reaction runs when the task opens, and never falls back to a route."
+  }
+
+  assert {
+    condition     = spotlight_integration.this[0].definition.webhook.events[0].raise.marks[2].kind == "slack.message" && spotlight_integration.this[0].definition.webhook.events[0].raise.marks[2].find == false
+    error_message = "A mention marks the task with its own message."
+  }
+}
+
+run "reacts_with_the_given_emoji" {
+  command = plan
+
+  variables {
+    acknowledge = "white_check_mark"
+  }
+
+  assert {
+    condition     = strcontains(spotlight_integration.this[0].definition.actions["acknowledge"].request.body, "\"name\": \"white_check_mark\"")
+    error_message = "The reaction uses the given emoji."
+  }
+}
+
+run "does_not_react_when_off" {
+  command = plan
+
+  variables {
+    acknowledge = null
+  }
+
+  assert {
+    condition     = !contains(keys(spotlight_integration.this[0].definition.actions), "acknowledge") && !contains(keys(spotlight_integration.this[0].definition.on), "task.opened")
+    error_message = "No reaction is defined when acknowledge is null."
+  }
+}
+
+run "refuses_an_emoji_with_colons" {
+  command = plan
+
+  variables {
+    acknowledge = ":eyes:"
+  }
+
+  expect_failures = [var.acknowledge]
+}

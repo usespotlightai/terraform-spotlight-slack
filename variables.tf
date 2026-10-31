@@ -61,6 +61,17 @@ variable "post_message_approval" {
   default     = null
 }
 
+variable "acknowledge" {
+  description = "The name of the emoji the app reacts with on a mention, once the mention has opened a task, as in `eyes`. The bot then needs the `reactions:write` scope. Null turns the reaction off."
+  type        = string
+  default     = "eyes"
+
+  validation {
+    condition     = var.acknowledge == null || can(regex("^[a-z0-9_+'-]+$", var.acknowledge))
+    error_message = "acknowledge is an emoji name without colons, as in eyes."
+  }
+}
+
 variable "create_secrets" {
   description = "Whether the module creates the two secrets from `signing_secret` and `bot_token`. False uses the workspace secrets named `signing_secret_name` and `bot_token_name`, which you keep yourself; the bot token's secret must then be bound to `slack.com` in the `authorization` header, with the prefix `Bearer `."
   type        = bool

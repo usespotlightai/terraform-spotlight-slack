@@ -17,6 +17,7 @@ locals {
 
   thread_mark  = "${var.integration}.thread"
   channel_mark = "${var.integration}.channel"
+  message_mark = "${var.integration}.message"
 
   on_asked = merge(
     {
@@ -43,6 +44,28 @@ locals {
     },
     var.post_message_approval == null ? {} : { approval = { because = var.post_message_approval } },
   )
+
+  acknowledge_actions = var.acknowledge == null ? {} : {
+    acknowledge = {
+      request = {
+        method = "POST"
+        url    = "https://slack.com/api/reactions.add"
+        auth   = { secrets = ["secret.${local.bot_token_name}"] }
+        body   = "$${{ {\"channel\": target.channel, \"timestamp\": target.message, \"name\": \"${var.acknowledge}\"} }}"
+        expect = { success = "$${{ response.ok }}" }
+      }
+    }
+  }
+
+  acknowledge_on = var.acknowledge == null ? {} : {
+    "task.opened" = {
+      action = "acknowledge"
+      to = {
+        channel = "$${{ \"${local.channel_mark}\" in task.marks && \"${local.message_mark}\" in task.marks ? task.marks[\"${local.channel_mark}\"] : \"\" }}"
+        message = "$${{ \"${local.message_mark}\" in task.marks ? task.marks[\"${local.message_mark}\"] : \"\" }}"
+      }
+    }
+  }
 }
 
 resource "spotlight_secret" "signing" {
@@ -108,6 +131,7 @@ resource "spotlight_integration" "this" {
             marks = [
               { kind = local.thread_mark, value = "$${{ body.event.channel + \":\" + (has(body.event.thread_ts) ? body.event.thread_ts : body.event.ts) }}" },
               { kind = local.channel_mark, find = false, value = "$${{ body.event.channel }}" },
+              { kind = local.message_mark, find = false, value = "$${{ body.event.ts }}" },
             ]
           }
         },
@@ -127,7 +151,7 @@ resource "spotlight_integration" "this" {
       ]
     }
 
-    actions = {
+    actions = merge({
       post-question = {
         request = {
           method = "POST"
@@ -152,14 +176,14 @@ resource "spotlight_integration" "this" {
           }
         }
       }
-    }
+    }, local.acknowledge_actions)
 
     tools = {
       post-message = local.post_message_tool
     }
 
-    on = {
+    on = merge({
       "task.asked" = local.on_asked
-    }
+    }, local.acknowledge_on)
   }
 }
