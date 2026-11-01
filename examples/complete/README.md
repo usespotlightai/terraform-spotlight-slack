@@ -20,7 +20,7 @@ Give the `webhook_url` output as the request URL in the Slack app's event subscr
 | Name | Version |
 | ---- | ------- |
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.11 |
-| <a name="requirement_spotlight"></a> [spotlight](#requirement\_spotlight) | >= 0.1 |
+| <a name="requirement_spotlight"></a> [spotlight](#requirement\_spotlight) | >= 0.1.0-rc.4 |
 
 ## Providers
 

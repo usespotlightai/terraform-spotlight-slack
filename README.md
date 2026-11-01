@@ -19,14 +19,27 @@ task asks a question ──chat.postMessage (bot token)─┘ to the task's chan
 
 Terraform 1.11 is the floor because `value_wo` on `spotlight_secret` is a **write-only** attribute: Terraform sends the secret to Spotlight but never stores it in the plan or the state. `signing_secret` and `bot_token` are ephemeral variables for the same reason. Spotlight only takes new values when `secret_version` changes.
 
+The module needs the Spotlight provider 0.1.0-rc.4 or later, the first release that calls the control plane's `/api/v1` resource API.
+
+The module and the provider are release candidates. Terraform selects a release candidate only for an exact version, such as `version = "0.1.0-rc.4"`. It skips release candidates for `>=` and `~>`. Thus, pin the module and the provider to exact versions, as in [Usage](#usage).
+
 Spotlight checks the integration's definition when you plan and apply, not the provider. If the definition format changes in a Spotlight release, update the module to the release that follows it.
 
 ## Usage
 
 ```hcl
+terraform {
+  required_providers {
+    spotlight = {
+      source  = "usespotlightai/spotlight"
+      version = "0.1.0-rc.4"
+    }
+  }
+}
+
 module "slack" {
   source  = "usespotlightai/slack/spotlight"
-  version = "~> 0.1"
+  version = "0.1.0-rc.1" # x-release-please-version
 
   workspace = "acme"
   team      = "core"
@@ -133,13 +146,13 @@ CI runs the same hooks and the tests on every pull request. Pull requests are sq
 | Name | Version |
 | ---- | ------- |
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.11 |
-| <a name="requirement_spotlight"></a> [spotlight](#requirement\_spotlight) | >= 0.1 |
+| <a name="requirement_spotlight"></a> [spotlight](#requirement\_spotlight) | >= 0.1.0-rc.4 |
 
 ## Providers
 
 | Name | Version |
 | ---- | ------- |
-| <a name="provider_spotlight"></a> [spotlight](#provider\_spotlight) | >= 0.1 |
+| <a name="provider_spotlight"></a> [spotlight](#provider\_spotlight) | >= 0.1.0-rc.4 |
 
 ## Modules
 
