@@ -56,6 +56,12 @@
       "hidden": true
     }
   ],
+  "extra-files": [
+    {
+      "type": "generic",
+      "path": "README.md"
+    }
+  ],
   "packages": {
     ".": {}
   }
