@@ -104,7 +104,7 @@ locals {
     }
   }
 
-  unmentioned = "$${{ body.event.text.startsWith(\"<@\") ? body.event.text.substring(body.event.text.indexOf(\">\") + 1) : body.event.text }}"
+  unmentioned = "$${{ has(body.authorizations) && size(body.authorizations) > 0 && body.event.text.startsWith(\"<@\" + body.authorizations[0].user_id + \">\") ? body.event.text.substring(body.event.text.indexOf(\">\") + 1) : body.event.text }}"
 
   opens_chat = merge(
     { by = { email = "$${{ email }}" } },

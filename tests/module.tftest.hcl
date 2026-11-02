@@ -89,13 +89,13 @@ run "signs_a_mention_and_a_reply_without_the_mention" {
   command = plan
 
   assert {
-    condition     = spotlight_integration.this[0].definition.webhook.events[0].raise.message == spotlight_integration.this[0].definition.webhook.events[1].raise.message && startswith(spotlight_integration.this[0].definition.webhook.events[1].raise.message, "$${{ body.event.text.startsWith(\"<@\")")
-    error_message = "A reply drops the leading mention of the app, as a mention does."
+    condition     = alltrue([for each in spotlight_integration.this[0].definition.webhook.events : strcontains(each.raise.message, "body.event.text.startsWith(\"<@\" + body.authorizations[0].user_id + \">\")")])
+    error_message = "A mention and a reply drop only a leading mention of the app itself."
   }
 
   assert {
-    condition     = spotlight_integration.this[0].definition.webhook.events[1].lookup == spotlight_integration.this[0].definition.webhook.events[0].lookup && spotlight_integration.this[0].definition.webhook.events[1].raise.author.email == "$${{ email }}"
-    error_message = "A reply names its author by the email of the Slack user, as a mention does."
+    condition     = alltrue([for each in spotlight_integration.this[0].definition.webhook.events : each.lookup.request.url == "https://slack.com/api/users.info" && each.lookup.capture.email == "$${{ response.user.profile.email }}" && each.raise.author.email == "$${{ email }}"])
+    error_message = "A mention and a reply name their author by the email of the Slack user."
   }
 }
 
