@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.0-rc.4](https://github.com/usespotlightai/terraform-spotlight-slack/compare/v0.1.0-rc.3...v0.1.0-rc.4) (2026-11-02)
+
+
+### Features
+
+* react to a mention that reopens a task ([#10](https://github.com/usespotlightai/terraform-spotlight-slack/issues/10)) ([1005858](https://github.com/usespotlightai/terraform-spotlight-slack/commit/10058584a5b663685a489703a74e4a9842e8b8a2))
+* sign a reply with its Slack user and drop the leading mention ([#9](https://github.com/usespotlightai/terraform-spotlight-slack/issues/9)) ([70dd3c4](https://github.com/usespotlightai/terraform-spotlight-slack/commit/70dd3c4f8811e61328fa9ac197f4fc7e42006a3c))
+
+
+### Bug Fixes
+
+* bring the files of a mention and a reply to the agent ([#7](https://github.com/usespotlightai/terraform-spotlight-slack/issues/7)) ([4faa112](https://github.com/usespotlightai/terraform-spotlight-slack/commit/4faa112fe056352c2c547d0b4b66d079945a876a))
+
 ## [0.1.0-rc.3](https://github.com/usespotlightai/terraform-spotlight-slack/compare/v0.1.0-rc.2...v0.1.0-rc.3) (2026-11-02)
 
 
