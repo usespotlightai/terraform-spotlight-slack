@@ -61,13 +61,46 @@ variable "post_message_approval" {
 }
 
 variable "acknowledge" {
-  description = "The name of the emoji the app reacts with on a mention, once the mention has started a chat or reopened a task, as in `eyes`. The bot then needs the `reactions:write` scope. Null turns the reaction off."
+  description = "The name of the emoji the app reacts with on a mention that reopens a finished task from its thread, as in `eyes`. The bot then needs the `reactions:write` scope. Null turns the reaction off."
   type        = string
   default     = "eyes"
 
   validation {
     condition     = var.acknowledge == null || can(regex("^[a-z0-9_+'-]+$", var.acknowledge))
     error_message = "acknowledge is an emoji name without colons, as in eyes."
+  }
+}
+
+variable "status" {
+  description = "The status Slack shows in a chat's thread while the agent works, as in `is thinking…`. Slack clears it when the app replies. The bot then needs the `assistant:write` or `chat:write` scope. Null turns the status off."
+  type        = string
+  default     = "is thinking…"
+
+  validation {
+    condition     = var.status == null || can(regex("^[^\"\\\\{}]+$", var.status))
+    error_message = "status is a short text without double quotes, backslashes or braces, as in is thinking…."
+  }
+}
+
+variable "finished_reaction" {
+  description = "The name of the emoji the app reacts with when a task from Slack is complete, as in `white_check_mark`. It goes on the first message of the task's question thread, or on the mention that started the chat when the task asked nothing. The bot then needs the `reactions:write` scope. Null turns the reaction off."
+  type        = string
+  default     = "white_check_mark"
+
+  validation {
+    condition     = var.finished_reaction == null || can(regex("^[a-z0-9_+'-]+$", var.finished_reaction))
+    error_message = "finished_reaction is an emoji name without colons, as in white_check_mark."
+  }
+}
+
+variable "failed_reaction" {
+  description = "The name of the emoji the app reacts with when a run of a task from Slack fails, as in `x`. It goes on the same message as `finished_reaction`, and comes off when the task is complete. Null turns the reaction off."
+  type        = string
+  default     = "x"
+
+  validation {
+    condition     = var.failed_reaction == null || can(regex("^[a-z0-9_+'-]+$", var.failed_reaction))
+    error_message = "failed_reaction is an emoji name without colons, as in x."
   }
 }
 

@@ -19,15 +19,84 @@ locals {
   channel_mark   = "${var.integration}.channel"
   message_mark   = "${var.integration}.message"
   thread_ts_mark = "${var.integration}.thread_ts"
+  user_mark      = "${var.integration}.user"
+
+  interaction = "parseJson(body.payload)"
 
   in_thread = {
     channel = "$${{ \"${local.channel_mark}\" in chat.marks && \"${local.thread_ts_mark}\" in chat.marks ? chat.marks[\"${local.channel_mark}\"] : \"\" }}"
     thread  = "$${{ \"${local.thread_ts_mark}\" in chat.marks ? chat.marks[\"${local.thread_ts_mark}\"] : \"\" }}"
   }
 
-  chat_on = {
-    "chat.replied" = { action = "post-reply", to = local.in_thread }
-    "chat.refused" = { action = "post-reply", to = local.in_thread }
+  reopened = concat(
+    var.acknowledge == null ? [] : [{
+      action = "react"
+      to = {
+        channel = "$${{ \"${local.channel_mark}\" in chat.marks && \"${local.message_mark}\" in chat.marks ? chat.marks[\"${local.channel_mark}\"] : \"\" }}"
+        message = "$${{ \"${local.message_mark}\" in chat.marks ? chat.marks[\"${local.message_mark}\"] : \"\" }}"
+        emoji   = "$${{ \"${var.acknowledge}\" }}"
+      }
+    }],
+    var.finished_reaction == null ? [] : [{
+      action = "unreact"
+      to = {
+        channel = local.in_thread.channel
+        message = local.in_thread.thread
+        emoji   = "$${{ \"${var.finished_reaction}\" }}"
+      }
+    }],
+  )
+
+  chat_on = merge(
+    {
+      "chat.replied" = [{ action = "post-reply", to = local.in_thread }]
+      "chat.refused" = [{ action = "post-reply", to = local.in_thread }]
+    },
+    var.status == null ? {} : {
+      "chat.dispatched" = [{ action = "set-status", to = local.in_thread }]
+    },
+    length(local.reopened) == 0 ? {} : {
+      "chat.acknowledged" = local.reopened
+    },
+  )
+
+  mentions_starter = "(\"${local.user_mark}\" in task.marks ? \"<@\" + task.marks[\"${local.user_mark}\"] + \"> \" : \"\")"
+  mention_block    = "dyn(\"${local.user_mark}\" in task.marks ? [{\"type\": \"section\", \"text\": {\"type\": \"mrkdwn\", \"text\": \"<@\" + task.marks[\"${local.user_mark}\"] + \">\"}}] : [])"
+
+  task_root = {
+    channel = "\"${local.thread_mark}\" in task.marks ? task.marks[\"${local.thread_mark}\"].split(\":\")[0] : \"${local.channel_mark}\" in task.marks ? task.marks[\"${local.channel_mark}\"] : \"\""
+    message = "\"${local.thread_mark}\" in task.marks ? task.marks[\"${local.thread_mark}\"].split(\":\")[1] : \"${local.message_mark}\" in task.marks ? task.marks[\"${local.message_mark}\"] : \"\""
+    thread  = "\"${local.thread_mark}\" in task.marks ? task.marks[\"${local.thread_mark}\"].split(\":\")[1] : \"${local.thread_ts_mark}\" in task.marks ? task.marks[\"${local.thread_ts_mark}\"] : \"\""
+  }
+
+  on_root = {
+    channel = "$${{ ${local.task_root.channel} }}"
+    message = "$${{ ${local.task_root.message} }}"
+  }
+
+  task_on = {
+    "task.finished" = concat(
+      var.failed_reaction == null ? [] : [{
+        action = "unreact"
+        to     = merge(local.on_root, { emoji = "$${{ \"${var.failed_reaction}\" }}" })
+      }],
+      var.finished_reaction == null ? [] : [{
+        action = "react"
+        to     = merge(local.on_root, { emoji = "$${{ \"${var.finished_reaction}\" }}" })
+      }],
+      [{
+        action = "post-notice"
+        to = {
+          channel = local.on_root.channel
+          thread  = "$${{ ${local.task_root.thread} }}"
+          text    = "$${{ \"The task “\" + task.title + \"” is complete.\" + (task.pullRequest != null ? \" Pull request: \" + task.pullRequest : \"\") }}"
+        }
+      }],
+    )
+    "task.failed" = var.failed_reaction == null ? [] : [{
+      action = "react"
+      to     = merge(local.on_root, { emoji = "$${{ \"${var.failed_reaction}\" }}" })
+    }]
   }
 
   on_asked = merge(
@@ -56,29 +125,28 @@ locals {
     var.post_message_approval == null ? {} : { approval = { because = var.post_message_approval } },
   )
 
-  acknowledge_actions = var.acknowledge == null ? {} : {
-    acknowledge = {
+  status_actions = var.status == null ? {} : {
+    set-status = {
       request = {
         method = "POST"
-        url    = "https://slack.com/api/reactions.add"
+        url    = "https://slack.com/api/assistant.threads.setStatus"
         auth   = { secrets = ["secret.${local.bot_token_name}"] }
-        body   = "$${{ {\"channel\": target.channel, \"timestamp\": target.message, \"name\": \"${var.acknowledge}\"} }}"
+        body   = "$${{ {\"channel_id\": target.channel, \"thread_ts\": target.thread, \"status\": \"${var.status}\"} }}"
         expect = { success = "$${{ response.ok }}" }
       }
     }
   }
 
-  acknowledge_binding = {
-    action = "acknowledge"
-    to = {
-      channel = "$${{ \"${local.channel_mark}\" in chat.marks && \"${local.message_mark}\" in chat.marks ? chat.marks[\"${local.channel_mark}\"] : \"\" }}"
-      message = "$${{ \"${local.message_mark}\" in chat.marks ? chat.marks[\"${local.message_mark}\"] : \"\" }}"
-    }
-  }
+  open_in_spotlight = "{\"type\": \"actions\", \"elements\": [{\"type\": \"button\", \"text\": {\"type\": \"plain_text\", \"text\": \"Open in Spotlight\"}, \"url\": LINK}]}"
 
-  acknowledge_on = var.acknowledge == null ? {} : {
-    "chat.started"      = local.acknowledge_binding
-    "chat.acknowledged" = local.acknowledge_binding
+  shown = "{\"type\": \"markdown\", \"text\": TEXT.size() > 11000 ? TEXT.substring(0, 11000) + \"…\" : TEXT}"
+
+  decisions = "{\"type\": \"actions\", \"elements\": [{\"type\": \"button\", \"style\": \"primary\", \"text\": {\"type\": \"plain_text\", \"text\": \"Accept \" + string(p.number)}, \"value\": \"accept \" + string(p.number)}, {\"type\": \"button\", \"text\": {\"type\": \"plain_text\", \"text\": \"Dismiss \" + string(p.number)}, \"value\": \"dismiss \" + string(p.number)}]}"
+
+  blocks = {
+    reply    = "dyn([${replace(local.shown, "TEXT", "reply.body")}]) + dyn(reply.proposals.map(p, ${local.decisions})) + dyn(reply.link != null ? [${replace(local.open_in_spotlight, "LINK", "reply.link")}] : [])"
+    question = "${local.mention_block} + dyn([${replace(local.shown, "TEXT", "ask.body")}]) + dyn(ask.link != null ? [${replace(local.open_in_spotlight, "LINK", "ask.link")}] : [])"
+    notice   = "${local.mention_block} + dyn([${replace(local.shown, "TEXT", "target.text")}]) + dyn(task.url != null ? [${replace(local.open_in_spotlight, "LINK", "task.url")}] : [])"
   }
 
   attachments = {
@@ -105,6 +173,13 @@ locals {
     capture = {
       email = "$${{ response.user.profile.email }}"
     }
+  }
+
+  clicker = {
+    request = merge(local.sender.request, {
+      query = { user = "$${{ ${local.interaction}.user.id }}" }
+    })
+    capture = local.sender.capture
   }
 
   unmentioned = "$${{ has(body.authorizations) && size(body.authorizations) > 0 && body.event.text.startsWith(\"<@\" + body.authorizations[0].user_id + \">\") ? body.event.text.substring(body.event.text.indexOf(\">\") + 1) : body.event.text }}"
@@ -160,13 +235,13 @@ resource "spotlight_integration" "this" {
         }
       }
       respond = {
-        when = "$${{ body.type == \"url_verification\" }}"
+        when = "$${{ has(body.type) && body.type == \"url_verification\" }}"
         body = "$${{ body.challenge }}"
       }
-      ignoreWhen = "$${{ has(body.event.bot_id) && body.event.bot_id != \"\" }}"
+      ignoreWhen = "$${{ has(body.event) && has(body.event.bot_id) && body.event.bot_id != \"\" }}"
       events = [
         {
-          when   = "$${{ body.event.type == \"app_mention\" }}"
+          when   = "$${{ has(body.event) && body.event.type == \"app_mention\" }}"
           lookup = local.sender
           raise = {
             happening = "${var.integration}.app_mention"
@@ -183,11 +258,12 @@ resource "spotlight_integration" "this" {
               { kind = local.channel_mark, find = false, value = "$${{ body.event.channel }}" },
               { kind = local.message_mark, find = false, value = "$${{ body.event.ts }}" },
               { kind = local.thread_ts_mark, find = false, value = "$${{ has(body.event.thread_ts) ? body.event.thread_ts : body.event.ts }}" },
+              { kind = local.user_mark, find = false, value = "$${{ body.event.user }}" },
             ]
           }
         },
         {
-          when   = "$${{ body.event.type == \"message\" && has(body.event.thread_ts) && body.event.thread_ts != \"\" }}"
+          when   = "$${{ has(body.event) && body.event.type == \"message\" && has(body.event.thread_ts) && body.event.thread_ts != \"\" }}"
           lookup = local.sender
           raise = {
             happening   = "${var.integration}.message.replied"
@@ -202,6 +278,23 @@ resource "spotlight_integration" "this" {
             ]
           }
         },
+        {
+          when   = "$${{ has(body.payload) && ${local.interaction}.type == \"block_actions\" && ${local.interaction}.container.type == \"message\" && size(${local.interaction}.actions) > 0 && \"value\" in ${local.interaction}.actions[0] }}"
+          lookup = local.clicker
+          raise = {
+            happening = "${var.integration}.block_actions"
+            label     = "Clicked"
+            summary   = "Clicked a button in Slack."
+            message   = "$${{ ${local.interaction}.actions[0].value }}"
+            author    = { email = "$${{ email }}" }
+            opens = {
+              chat = local.opens_chat
+            }
+            marks = [
+              { kind = local.thread_mark, value = "$${{ ${local.interaction}.container.channel_id + \":\" + (\"thread_ts\" in ${local.interaction}.message ? ${local.interaction}.message.thread_ts : ${local.interaction}.message.ts) }}" },
+            ]
+          }
+        },
       ]
     }
 
@@ -211,7 +304,7 @@ resource "spotlight_integration" "this" {
           method = "POST"
           url    = "https://slack.com/api/chat.postMessage"
           auth   = { secrets = ["secret.${local.bot_token_name}"] }
-          body   = "$${{ {\"channel\": target.channel, \"text\": ask.body} }}"
+          body   = "$${{ {\"channel\": target.channel, \"text\": ${local.mentions_starter} + ask.body, \"blocks\": ${local.blocks.question}} }}"
           expect = { success = "$${{ response.ok }}" }
           capture = {
             thread = "$${{ target.channel + \":\" + response.ts }}"
@@ -223,8 +316,35 @@ resource "spotlight_integration" "this" {
           method = "POST"
           url    = "https://slack.com/api/chat.postMessage"
           auth   = { secrets = ["secret.${local.bot_token_name}"] }
-          body   = "$${{ {\"channel\": target.channel, \"thread_ts\": target.thread, \"text\": reply.link != null ? reply.body + \"\\n\\n<\" + reply.link + \"|Open in Spotlight>\" : reply.body} }}"
+          body   = "$${{ {\"channel\": target.channel, \"thread_ts\": target.thread, \"text\": reply.body, \"blocks\": ${local.blocks.reply}} }}"
           expect = { success = "$${{ response.ok }}" }
+        }
+      }
+      post-notice = {
+        request = {
+          method = "POST"
+          url    = "https://slack.com/api/chat.postMessage"
+          auth   = { secrets = ["secret.${local.bot_token_name}"] }
+          body   = "$${{ {\"channel\": target.channel, \"thread_ts\": target.thread, \"text\": ${local.mentions_starter} + target.text, \"blocks\": ${local.blocks.notice}} }}"
+          expect = { success = "$${{ response.ok }}" }
+        }
+      }
+      unreact = {
+        request = {
+          method = "POST"
+          url    = "https://slack.com/api/reactions.remove"
+          auth   = { secrets = ["secret.${local.bot_token_name}"] }
+          body   = "$${{ {\"channel\": target.channel, \"timestamp\": target.message, \"name\": target.emoji} }}"
+          expect = { success = "$${{ response.ok || response.error == \"no_reaction\" }}" }
+        }
+      }
+      react = {
+        request = {
+          method = "POST"
+          url    = "https://slack.com/api/reactions.add"
+          auth   = { secrets = ["secret.${local.bot_token_name}"] }
+          body   = "$${{ {\"channel\": target.channel, \"timestamp\": target.message, \"name\": target.emoji} }}"
+          expect = { success = "$${{ response.ok || response.error == \"already_reacted\" }}" }
         }
       }
       post-message = {
@@ -239,14 +359,14 @@ resource "spotlight_integration" "this" {
           }
         }
       }
-    }, local.acknowledge_actions)
+    }, local.status_actions)
 
     tools = {
       post-message = local.post_message_tool
     }
 
     on = merge({
-      "task.asked" = local.on_asked
-    }, local.chat_on, local.acknowledge_on)
+      "task.asked" = [local.on_asked]
+    }, local.chat_on, { for event, bindings in local.task_on : event => bindings if length(bindings) > 0 })
   }
 }
