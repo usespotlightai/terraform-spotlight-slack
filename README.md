@@ -67,7 +67,7 @@ When the agent proposes a task, its answer lists the open proposals. Reply `@app
 
 A mention from a Slack user whose email is neither the sign-in email nor a verified email of a member gets a reply that says so, and starts no chat. The mention gets the same reply when the email cannot be read: the bot lacks the `users:read.email` scope, or the Slack user has no email, as for a bot or some guests. Set `harness` to choose the harness that answers, as in `codex`. By default, Spotlight uses its default harness.
 
-A task created from a Slack chat posts its questions to the channel of that chat, each in a new thread. `routes` names the channel for the questions of a line's other tasks, by line key.
+A task created from a Slack chat posts its questions to the channel of that chat, each in a new thread. `routes` names the channel for the questions of a line's other tasks, by line key. A reply in the thread of a question answers it. In Spotlight, the reply shows the avatar of the member who uses the email of the Slack user, and a mention of the app at the start of the reply is removed.
 
 ### Prepare the Slack app
 
