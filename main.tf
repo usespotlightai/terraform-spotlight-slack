@@ -78,6 +78,19 @@ locals {
     }
   }
 
+  attachments = {
+    each = "$${{ has(body.event.files) ? body.event.files.filter(file, has(file.url_private_download)) : [] }}"
+    name = "$${{ has(file.name) ? file.name : \"\" }}"
+    type = "$${{ has(file.mimetype) ? file.mimetype : \"\" }}"
+    size = "$${{ has(file.size) ? file.size : -1 }}"
+    fetch = {
+      method = "GET"
+      url    = "$${{ file.url_private_download }}"
+      auth   = { secrets = ["secret.${local.bot_token_name}"] }
+      expect = { success = "$${{ status >= 200 && status < 300 && ((has(file.mimetype) && file.mimetype.lowerAscii() == \"text/html\") || !(\"content-type\" in headers) || !headers[\"content-type\"].lowerAscii().startsWith(\"text/html\")) }}" }
+    }
+  }
+
   opens_chat = merge(
     { by = { email = "$${{ email }}" } },
     var.harness == null ? {} : { harness = var.harness },
@@ -100,6 +113,7 @@ resource "spotlight_secret" "bot_token" {
   name         = var.bot_token_name
   bindings = [
     { host = "slack.com", location = "header", name = "authorization", prefix = "Bearer " },
+    { host = "files.slack.com", location = "header", name = "authorization", prefix = "Bearer " },
   ]
   value_wo         = var.bot_token
   value_wo_version = var.secret_version
@@ -155,6 +169,7 @@ resource "spotlight_integration" "this" {
             opens = {
               chat = local.opens_chat
             }
+            attachments = local.attachments
             marks = [
               { kind = local.thread_mark, value = "$${{ body.event.channel + \":\" + (has(body.event.thread_ts) ? body.event.thread_ts : body.event.ts) }}" },
               { kind = local.channel_mark, find = false, value = "$${{ body.event.channel }}" },
@@ -166,11 +181,12 @@ resource "spotlight_integration" "this" {
         {
           when = "$${{ body.event.type == \"message\" && body.event.thread_ts != \"\" }}"
           raise = {
-            happening = "${var.integration}.message.replied"
-            label     = "Replied"
-            summary   = "Replied in a Slack thread."
-            answers   = true
-            message   = "$${{ body.event.text }}"
+            happening   = "${var.integration}.message.replied"
+            label       = "Replied"
+            summary     = "Replied in a Slack thread."
+            answers     = true
+            message     = "$${{ body.event.text }}"
+            attachments = local.attachments
             marks = [
               { kind = local.thread_mark, value = "$${{ body.event.channel + \":\" + body.event.thread_ts }}" },
             ]

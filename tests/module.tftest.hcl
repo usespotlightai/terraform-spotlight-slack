@@ -31,8 +31,8 @@ run "creates_the_secrets_and_the_integration" {
   }
 
   assert {
-    condition     = spotlight_secret.bot_token[0].bindings[0].host == "slack.com" && spotlight_secret.bot_token[0].bindings[0].prefix == "Bearer "
-    error_message = "The bot token goes only to slack.com, as a bearer token."
+    condition     = [for each in spotlight_secret.bot_token[0].bindings : each.host] == ["slack.com", "files.slack.com"] && alltrue([for each in spotlight_secret.bot_token[0].bindings : each.prefix == "Bearer "])
+    error_message = "The bot token goes only to slack.com and files.slack.com, as a bearer token."
   }
 
   assert {
@@ -82,6 +82,30 @@ run "starts_a_chat_from_a_mention" {
   assert {
     condition     = strcontains(spotlight_integration.this[0].definition.on["chat.replied"].to.channel, "\"slack.channel\" in chat.marks") && strcontains(spotlight_integration.this[0].definition.on["chat.started"].to.message, "\"slack.message\" in chat.marks")
     error_message = "A chat without the integration's marks is not addressed, and no expression fails on it."
+  }
+}
+
+run "brings_the_files_of_a_mention_and_a_reply" {
+  command = plan
+
+  assert {
+    condition     = spotlight_integration.this[0].definition.webhook.events[0].raise.attachments == spotlight_integration.this[0].definition.webhook.events[1].raise.attachments
+    error_message = "A mention and a reply bring their files the same way."
+  }
+
+  assert {
+    condition     = spotlight_integration.this[0].definition.webhook.events[0].raise.attachments.each == "$${{ has(body.event.files) ? body.event.files.filter(file, has(file.url_private_download)) : [] }}"
+    error_message = "Only the files Slack gives a download address for are brought."
+  }
+
+  assert {
+    condition     = spotlight_integration.this[0].definition.webhook.events[0].raise.attachments.fetch.method == "GET" && spotlight_integration.this[0].definition.webhook.events[0].raise.attachments.fetch.url == "$${{ file.url_private_download }}" && spotlight_integration.this[0].definition.webhook.events[0].raise.attachments.fetch.auth.secrets == ["secret.SLACK_BOT_TOKEN"]
+    error_message = "Each file is downloaded with the bot token."
+  }
+
+  assert {
+    condition     = spotlight_integration.this[0].definition.webhook.events[0].raise.attachments.fetch.expect.success == "$${{ status >= 200 && status < 300 && ((has(file.mimetype) && file.mimetype.lowerAscii() == \"text/html\") || !(\"content-type\" in headers) || !headers[\"content-type\"].lowerAscii().startsWith(\"text/html\")) }}"
+    error_message = "A Slack sign-in page is not kept as the file, unless the file is itself HTML."
   }
 }
 
