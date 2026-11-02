@@ -65,7 +65,7 @@ A mention of the app starts a chat with the team's agent, for the Spotlight memb
 
 When the agent proposes a task, its answer lists the open proposals. Reply `@app accept` to create the task, or `@app dismiss` to remove the proposal. When more than one proposal is open, give its number, as in `@app accept 2`.
 
-A mention from a Slack user whose email no member uses gets a reply that says so, and starts no chat. Set `harness` to choose the harness that answers, as in `codex`. By default, Spotlight uses its default harness.
+A mention from a Slack user whose email no member uses gets a reply that says so, and starts no chat. The mention gets the same reply when the email cannot be read: the bot lacks the `users:read.email` scope, or the Slack user has no email, as for a bot or some guests. Set `harness` to choose the harness that answers, as in `codex`. By default, Spotlight uses its default harness.
 
 A task created from a Slack chat posts its questions to the channel of that chat, each in a new thread. `routes` names the channel for the questions of a line's other tasks, by line key.
 

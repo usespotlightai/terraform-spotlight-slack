@@ -21,8 +21,8 @@ locals {
   thread_ts_mark = "${var.integration}.thread_ts"
 
   in_thread = {
-    channel = "$${{ chat.marks[\"${local.channel_mark}\"] }}"
-    thread  = "$${{ chat.marks[\"${local.thread_ts_mark}\"] }}"
+    channel = "$${{ \"${local.channel_mark}\" in chat.marks && \"${local.thread_ts_mark}\" in chat.marks ? chat.marks[\"${local.channel_mark}\"] : \"\" }}"
+    thread  = "$${{ \"${local.thread_ts_mark}\" in chat.marks ? chat.marks[\"${local.thread_ts_mark}\"] : \"\" }}"
   }
 
   chat_on = {
@@ -72,8 +72,8 @@ locals {
     "chat.started" = {
       action = "acknowledge"
       to = {
-        channel = "$${{ chat.marks[\"${local.channel_mark}\"] }}"
-        message = "$${{ chat.marks[\"${local.message_mark}\"] }}"
+        channel = "$${{ \"${local.channel_mark}\" in chat.marks && \"${local.message_mark}\" in chat.marks ? chat.marks[\"${local.channel_mark}\"] : \"\" }}"
+        message = "$${{ \"${local.message_mark}\" in chat.marks ? chat.marks[\"${local.message_mark}\"] : \"\" }}"
       }
     }
   }

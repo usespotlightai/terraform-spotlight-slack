@@ -78,6 +78,11 @@ run "starts_a_chat_from_a_mention" {
     condition     = spotlight_integration.this[0].definition.on["chat.replied"].action == "post-reply" && spotlight_integration.this[0].definition.on["chat.refused"].action == "post-reply" && strcontains(spotlight_integration.this[0].definition.on["chat.replied"].to.thread, "chat.marks[\"slack.thread_ts\"]")
     error_message = "Replies and refusals are posted in the thread of the chat."
   }
+
+  assert {
+    condition     = strcontains(spotlight_integration.this[0].definition.on["chat.replied"].to.channel, "\"slack.channel\" in chat.marks") && strcontains(spotlight_integration.this[0].definition.on["chat.started"].to.message, "\"slack.message\" in chat.marks")
+    error_message = "A chat without the integration's marks is not addressed, and no expression fails on it."
+  }
 }
 
 run "starts_chats_on_the_given_harness" {
