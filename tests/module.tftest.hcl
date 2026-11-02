@@ -89,18 +89,23 @@ run "brings_the_files_of_a_mention_and_a_reply" {
   command = plan
 
   assert {
-    condition     = alltrue([for each in spotlight_integration.this[0].definition.webhook.events : each.raise.attachments.each == "$${{ has(body.event.files) ? body.event.files : [] }}"])
-    error_message = "A mention and a reply bring the files attached to them."
+    condition     = spotlight_integration.this[0].definition.webhook.events[0].raise.attachments == spotlight_integration.this[0].definition.webhook.events[1].raise.attachments
+    error_message = "A mention and a reply bring their files the same way."
   }
 
   assert {
-    condition     = spotlight_integration.this[0].definition.webhook.events[0].raise.attachments.fetch.url == "$${{ file.url_private_download }}" && spotlight_integration.this[0].definition.webhook.events[0].raise.attachments.fetch.auth.secrets == ["secret.SLACK_BOT_TOKEN"]
+    condition     = spotlight_integration.this[0].definition.webhook.events[0].raise.attachments.each == "$${{ has(body.event.files) ? body.event.files.filter(file, has(file.url_private_download)) : [] }}"
+    error_message = "Only the files Slack gives a download address for are brought."
+  }
+
+  assert {
+    condition     = spotlight_integration.this[0].definition.webhook.events[0].raise.attachments.fetch.method == "GET" && spotlight_integration.this[0].definition.webhook.events[0].raise.attachments.fetch.url == "$${{ file.url_private_download }}" && spotlight_integration.this[0].definition.webhook.events[0].raise.attachments.fetch.auth.secrets == ["secret.SLACK_BOT_TOKEN"]
     error_message = "Each file is downloaded with the bot token."
   }
 
   assert {
-    condition     = strcontains(spotlight_integration.this[0].definition.webhook.events[0].raise.attachments.fetch.expect.success, "startsWith(\"text/html\")")
-    error_message = "A Slack sign-in page is not kept as the file."
+    condition     = spotlight_integration.this[0].definition.webhook.events[0].raise.attachments.fetch.expect.success == "$${{ status >= 200 && status < 300 && ((has(file.mimetype) && file.mimetype.lowerAscii() == \"text/html\") || !(\"content-type\" in headers) || !headers[\"content-type\"].lowerAscii().startsWith(\"text/html\")) }}"
+    error_message = "A Slack sign-in page is not kept as the file, unless the file is itself HTML."
   }
 }
 

@@ -79,15 +79,15 @@ locals {
   }
 
   attachments = {
-    each = "$${{ has(body.event.files) ? body.event.files : [] }}"
-    name = "$${{ has(file.url_private_download) && has(file.name) ? file.name : \"\" }}"
+    each = "$${{ has(body.event.files) ? body.event.files.filter(file, has(file.url_private_download)) : [] }}"
+    name = "$${{ has(file.name) ? file.name : \"\" }}"
     type = "$${{ has(file.mimetype) ? file.mimetype : \"\" }}"
     size = "$${{ has(file.size) ? file.size : -1 }}"
     fetch = {
       method = "GET"
       url    = "$${{ file.url_private_download }}"
       auth   = { secrets = ["secret.${local.bot_token_name}"] }
-      expect = { success = "$${{ status >= 200 && status < 300 && (file.mimetype == \"text/html\" || !(\"content-type\" in headers) || !headers[\"content-type\"].startsWith(\"text/html\")) }}" }
+      expect = { success = "$${{ status >= 200 && status < 300 && ((has(file.mimetype) && file.mimetype.lowerAscii() == \"text/html\") || !(\"content-type\" in headers) || !headers[\"content-type\"].lowerAscii().startsWith(\"text/html\")) }}" }
     }
   }
 
