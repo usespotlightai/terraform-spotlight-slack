@@ -19,10 +19,11 @@ output "webhook_url" {
 }
 
 output "happenings" {
-  description = "The happenings the integration raises: `mentioned` when someone mentions the app, `replied` when someone replies in a thread."
+  description = "The happenings the integration raises: `mentioned` when someone mentions the app, `replied` when someone replies in a thread, `clicked` when someone clicks a button of the app."
   value = {
     mentioned = "${var.integration}.app_mention"
     replied   = "${var.integration}.message.replied"
+    clicked   = "${var.integration}.block_actions"
   }
 }
 

@@ -1,6 +1,6 @@
 # terraform-spotlight-slack
 
-A Spotlight integration for a Slack app. A mention of the app starts a chat with the team's agent and gets an `eyes` reaction. The agent answers in the thread and can propose tasks, which you accept or dismiss with a reply. A task's questions are posted to Slack, and a reply in a question's thread answers it.
+A Spotlight integration for a Slack app. A mention of the app starts a chat with the team's agent. While the agent works, Slack shows "is thinking…" in the thread. The agent answers in the thread and can propose tasks, which you accept or dismiss with a button or a reply. A task's questions are posted to Slack and mention the person who started the chat, and a reply in a question's thread answers it. When the task is complete or fails, the app reacts to the thread and says so in it.
 
 The module creates a `spotlight_integration` and, unless you keep them yourself, the two `spotlight_secret`s it uses: the app's signing secret, which verifies that deliveries come from Slack, and its bot token, bound to `slack.com` and `files.slack.com`. The integration also gives agents and hooks a `post-message` tool.
 
@@ -9,13 +9,16 @@ Slack ──event (signed with the signing secret)──▶ webhook_url
                                                     │ verify, answer url_verification
                                                     ▼
                          app_mention  → starts a chat for the member who uses the Slack user's email
-                                        (users.info), or adds to the chat of that thread,
-                                        and reacts to the mention with acknowledge (reactions.add);
+                                        (users.info), or adds to the chat of that thread;
                                         in the thread of a finished task, reopens the task
+                                        and reacts to the mention with acknowledge (reactions.add)
                          thread reply → answers the question asked in that thread
+                         button click → accepts or dismisses a proposal of the chat
                                                     │
-the chat answers ─────chat.postMessage (bot token)──┤ in the chat's thread
-task asks a question ──chat.postMessage (bot token)─┘ to the task's channel, or routes[line] otherwise
+the agent works ──assistant.threads.setStatus───────┤ "is thinking…" in the chat's thread
+the chat answers ─────chat.postMessage (bot token)──┤ in the chat's thread, with buttons
+task asks a question ──chat.postMessage (bot token)─┤ to the task's channel, or routes[line] otherwise
+run fails / task ends ──reactions + chat.postMessage┘ on and in the task's thread
 ```
 
 ## Version constraints
@@ -42,7 +45,7 @@ terraform {
 
 module "slack" {
   source  = "usespotlightai/slack/spotlight"
-  version = "0.1.0-rc.4" # x-release-please-version
+  version = "0.1.0-rc.3" # x-release-please-version
 
   workspace = "acme"
   team      = "core"
@@ -64,25 +67,30 @@ output "slack_webhook_url" {
 
 A mention of the app starts a chat with the team's agent, for the Spotlight member who uses the email of the Slack user: as their sign-in email, or as an additional email they verified in Spotlight under Settings › Emails. See [Add another email to your account](https://docs.usespotlight.ai/docs/administration/add-another-email-to-your-account). The agent reads the repositories of the team's lines and answers in the thread. Files attached to a mention or a reply, such as screenshots, go to the agent with it. Spotlight downloads them with the bot token, which needs the `files:read` scope. Spotlight leaves behind a file larger than 25 MB, and a file that Slack gives no download address for. To continue the chat, mention the app again in the same thread. Only the person who started the chat can talk to it. The chat also shows on that person's Agent page in Spotlight.
 
-When the agent proposes a task, its answer lists the open proposals. Reply `@app accept` to create the task, or `@app dismiss` to remove the proposal. When more than one proposal is open, give its number, as in `@app accept 2`.
+When the agent proposes a task, its answer lists the open proposals, each with an **Accept** and a **Dismiss** button. Click **Accept** to create the task, or **Dismiss** to remove the proposal. You can also reply `@app accept` or `@app dismiss`. When more than one proposal is open, give its number, as in `@app accept 2`. Only a click of the person who started the chat acts. Another person gets a reply that says so. Each message of the app has an **Open in Spotlight** button.
 
 A mention from a Slack user whose email is neither the sign-in email nor a verified email of a member gets a reply that says so, and starts no chat. The mention gets the same reply when the email cannot be read: the bot lacks the `users:read.email` scope, or the Slack user has no email, as for a bot or some guests. Set `harness` to choose the harness that answers, as in `codex`. By default, Spotlight uses its default harness.
 
-A task created from a Slack chat posts its questions to the channel of that chat, each in a new thread. `routes` names the channel for the questions of a line's other tasks, by line key. A reply in the thread of a question answers it. In Spotlight, the reply shows the avatar of the member who uses the email of the Slack user, and a mention of the app at the start of the reply is removed.
+A task created from a Slack chat posts its questions to the channel of that chat, each in a new thread, and mentions the person who started the chat. `routes` names the channel for the questions of a line's other tasks, by line key. A reply in the thread of a question answers it. In Spotlight, the reply shows the avatar of the member who uses the email of the Slack user, and a mention of the app at the start of the reply is removed.
 
 ### Prepare the Slack app
 
-1. Give the app's bot the scopes `app_mentions:read`, `chat:write`, `channels:history`, `files:read`, `reactions:write`, `users:read` and `users:read.email`, and reinstall the app.
+1. Give the app's bot the scopes `app_mentions:read`, `chat:write`, `channels:history`, `files:read`, `reactions:write`, `users:read` and `users:read.email`, and reinstall the app. To show the status while the agent works, also turn on **Agents & AI Apps** in the app's settings.
 2. Copy the app's bot token and signing secret into `bot_token` and `signing_secret`.
 3. Run `terraform apply`.
 4. In the app's event subscriptions, turn events on and give `webhook_url` as the request URL. Slack sends a challenge, the integration responds to it, and Slack marks the address verified.
 5. Subscribe the bot to the `app_mention` and `message.channels` events, save, and reinstall the app if Slack asks.
+6. In the app's interactivity settings, turn interactivity on and give `webhook_url` as the request URL. The buttons need it.
 
 On a self-hosted Spotlight, set `spotlight_url` to your deployment's address so `webhook_url` is right.
 
-### React to a mention
+### See what the agent does
 
-When a mention starts a chat, or reopens a finished task from its thread, the app reacts to the mention with the emoji named in `acknowledge`, `eyes` by default. Set another emoji name without colons, as in `white_check_mark`, or `null` to turn the reaction off. The reaction needs the `reactions:write` scope.
+While a run of the agent works on a chat, Slack shows the text in `status`, `is thinking…` by default, at the bottom of the chat's thread. Slack removes it when the app replies. Set `status` to `null` to turn it off.
+
+When a run of a task from a Slack chat fails, the app reacts with the emoji in `failed_reaction`, `x` by default. The task stays open and asks its question as usual. When the task is complete, the app removes that reaction, reacts with the emoji in `finished_reaction`, `white_check_mark` by default, and says in the thread that the task is complete, with its pull request. The reactions go on the first message of the task's latest question thread. When the task asked no question, they go on the mention that started the chat. Set a reaction to `null` to turn it off. The message stays.
+
+A mention in the thread of a finished task reopens the task. The app reacts to the mention with the emoji in `acknowledge`, `eyes` by default, and removes `finished_reaction` from the first message of the thread. Set `acknowledge` to `null` to turn that reaction off.
 
 ### Post from a hook or a station
 
@@ -183,11 +191,13 @@ No modules.
 | ---- | ----------- | ---- | ------- | :------: |
 | <a name="input_team"></a> [team](#input\_team) | The key of the team the integration belongs to, as in `core`. | `string` | n/a | yes |
 | <a name="input_workspace"></a> [workspace](#input\_workspace) | The slug of the Spotlight workspace, as in `acme`. | `string` | n/a | yes |
-| <a name="input_acknowledge"></a> [acknowledge](#input\_acknowledge) | The name of the emoji the app reacts with on a mention, once the mention has started a chat or reopened a task, as in `eyes`. The bot then needs the `reactions:write` scope. Null turns the reaction off. | `string` | `"eyes"` | no |
+| <a name="input_acknowledge"></a> [acknowledge](#input\_acknowledge) | The name of the emoji the app reacts with on a mention that reopens a finished task from its thread, as in `eyes`. The bot then needs the `reactions:write` scope. Null turns the reaction off. | `string` | `"eyes"` | no |
 | <a name="input_bot_token"></a> [bot\_token](#input\_bot\_token) | The Slack app's bot token (`xoxb-`). Needed when `create_secrets` is true. | `string` | `null` | no |
 | <a name="input_bot_token_name"></a> [bot\_token\_name](#input\_bot\_token\_name) | The name of the workspace secret that holds the bot token. | `string` | `"SLACK_BOT_TOKEN"` | no |
 | <a name="input_create"></a> [create](#input\_create) | Whether to create the integration and its secrets. False creates nothing. | `bool` | `true` | no |
 | <a name="input_create_secrets"></a> [create\_secrets](#input\_create\_secrets) | Whether the module creates the two secrets from `signing_secret` and `bot_token`. False uses the workspace secrets named `signing_secret_name` and `bot_token_name`, which you keep yourself; the bot token's secret must then be bound to `slack.com` and `files.slack.com` in the `authorization` header, with the prefix `Bearer `. | `bool` | `true` | no |
+| <a name="input_failed_reaction"></a> [failed\_reaction](#input\_failed\_reaction) | The name of the emoji the app reacts with when a run of a task from Slack fails, as in `x`. It goes on the same message as `finished_reaction`, and comes off when the task is complete. Null turns the reaction off. | `string` | `"x"` | no |
+| <a name="input_finished_reaction"></a> [finished\_reaction](#input\_finished\_reaction) | The name of the emoji the app reacts with when a task from Slack is complete, as in `white_check_mark`. It goes on the first message of the task's question thread, or on the mention that started the chat when the task asked nothing. The bot then needs the `reactions:write` scope. Null turns the reaction off. | `string` | `"white_check_mark"` | no |
 | <a name="input_harness"></a> [harness](#input\_harness) | The harness that answers in a chat started from a mention, as in `codex`. Null uses Spotlight's default harness. | `string` | `null` | no |
 | <a name="input_integration"></a> [integration](#input\_integration) | The integration's name in the team. It is the last part of the webhook address, and the first part of every happening and mark kind the integration raises, as in `slack.app_mention`. Fixed for the integration's life. | `string` | `"slack"` | no |
 | <a name="input_name"></a> [name](#input\_name) | What the integration is called in the web app. | `string` | `"Slack"` | no |
@@ -197,6 +207,7 @@ No modules.
 | <a name="input_signing_secret"></a> [signing\_secret](#input\_signing\_secret) | The Slack app's signing secret. Needed when `create_secrets` is true. | `string` | `null` | no |
 | <a name="input_signing_secret_name"></a> [signing\_secret\_name](#input\_signing\_secret\_name) | The name of the workspace secret that holds the signing secret. | `string` | `"SLACK_SIGNING_SECRET"` | no |
 | <a name="input_spotlight_url"></a> [spotlight\_url](#input\_spotlight\_url) | The address of your Spotlight, used only for the `webhook_url` output. Change it for a self-hosted Spotlight. | `string` | `"https://app.usespotlight.ai"` | no |
+| <a name="input_status"></a> [status](#input\_status) | The status Slack shows in a chat's thread while the agent works, as in `is thinking…`. Slack clears it when the app replies. The bot then needs the `assistant:write` or `chat:write` scope. Null turns the status off. | `string` | `"is thinking…"` | no |
 
 ## Outputs
 
@@ -204,7 +215,7 @@ No modules.
 | ---- | ----------- |
 | <a name="output_address"></a> [address](#output\_address) | The integration's address in the workspace, as in `core/slack`. |
 | <a name="output_bot_token_name"></a> [bot\_token\_name](#output\_bot\_token\_name) | The name of the workspace secret that holds the bot token. |
-| <a name="output_happenings"></a> [happenings](#output\_happenings) | The happenings the integration raises: `mentioned` when someone mentions the app, `replied` when someone replies in a thread. |
+| <a name="output_happenings"></a> [happenings](#output\_happenings) | The happenings the integration raises: `mentioned` when someone mentions the app, `replied` when someone replies in a thread, `clicked` when someone clicks a button of the app. |
 | <a name="output_id"></a> [id](#output\_id) | The integration's ID. |
 | <a name="output_signing_secret_name"></a> [signing\_secret\_name](#output\_signing\_secret\_name) | The name of the workspace secret that holds the signing secret. |
 | <a name="output_tools"></a> [tools](#output\_tools) | The integration's tools, by name, to the name a station or hook gives it by, as in `{ post-message = "slack.post-message" }`. |
