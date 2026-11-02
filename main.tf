@@ -91,6 +91,21 @@ locals {
     }
   }
 
+  sender = {
+    request = {
+      method = "GET"
+      url    = "https://slack.com/api/users.info"
+      query  = { user = "$${{ body.event.user }}" }
+      auth   = { secrets = ["secret.${local.bot_token_name}"] }
+      expect = { success = "$${{ response.ok }}" }
+    }
+    capture = {
+      email = "$${{ response.user.profile.email }}"
+    }
+  }
+
+  unmentioned = "$${{ has(body.authorizations) && size(body.authorizations) > 0 && body.event.text.startsWith(\"<@\" + body.authorizations[0].user_id + \">\") ? body.event.text.substring(body.event.text.indexOf(\">\") + 1) : body.event.text }}"
+
   opens_chat = merge(
     { by = { email = "$${{ email }}" } },
     var.harness == null ? {} : { harness = var.harness },
@@ -148,24 +163,14 @@ resource "spotlight_integration" "this" {
       ignoreWhen = "$${{ body.event.bot_id != \"\" }}"
       events = [
         {
-          when = "$${{ body.event.type == \"app_mention\" }}"
-          lookup = {
-            request = {
-              method = "GET"
-              url    = "https://slack.com/api/users.info"
-              query  = { user = "$${{ body.event.user }}" }
-              auth   = { secrets = ["secret.${local.bot_token_name}"] }
-              expect = { success = "$${{ response.ok }}" }
-            }
-            capture = {
-              email = "$${{ response.user.profile.email }}"
-            }
-          }
+          when   = "$${{ body.event.type == \"app_mention\" }}"
+          lookup = local.sender
           raise = {
             happening = "${var.integration}.app_mention"
             label     = "Mentioned"
             summary   = "Mentioned Spotlight in Slack."
-            message   = "$${{ body.event.text.startsWith(\"<@\") ? body.event.text.substring(body.event.text.indexOf(\">\") + 1) : body.event.text }}"
+            message   = local.unmentioned
+            author    = { email = "$${{ email }}" }
             opens = {
               chat = local.opens_chat
             }
@@ -179,13 +184,15 @@ resource "spotlight_integration" "this" {
           }
         },
         {
-          when = "$${{ body.event.type == \"message\" && body.event.thread_ts != \"\" }}"
+          when   = "$${{ body.event.type == \"message\" && body.event.thread_ts != \"\" }}"
+          lookup = local.sender
           raise = {
             happening   = "${var.integration}.message.replied"
             label       = "Replied"
             summary     = "Replied in a Slack thread."
             answers     = true
-            message     = "$${{ body.event.text }}"
+            message     = local.unmentioned
+            author      = { email = "$${{ email }}" }
             attachments = local.attachments
             marks = [
               { kind = local.thread_mark, value = "$${{ body.event.channel + \":\" + body.event.thread_ts }}" },

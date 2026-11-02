@@ -85,6 +85,20 @@ run "starts_a_chat_from_a_mention" {
   }
 }
 
+run "signs_a_mention_and_a_reply_without_the_mention" {
+  command = plan
+
+  assert {
+    condition     = alltrue([for each in spotlight_integration.this[0].definition.webhook.events : strcontains(each.raise.message, "body.event.text.startsWith(\"<@\" + body.authorizations[0].user_id + \">\")")])
+    error_message = "A mention and a reply drop only a leading mention of the app itself."
+  }
+
+  assert {
+    condition     = alltrue([for each in spotlight_integration.this[0].definition.webhook.events : each.lookup.request.url == "https://slack.com/api/users.info" && each.lookup.capture.email == "$${{ response.user.profile.email }}" && each.raise.author.email == "$${{ email }}"])
+    error_message = "A mention and a reply name their author by the email of the Slack user."
+  }
+}
+
 run "brings_the_files_of_a_mention_and_a_reply" {
   command = plan
 
