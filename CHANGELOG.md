@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.0-rc.3](https://github.com/usespotlightai/terraform-spotlight-slack/compare/v0.1.0-rc.2...v0.1.0-rc.3) (2026-11-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* **SPO-268:** start an agent chat from a mention ([#4](https://github.com/usespotlightai/terraform-spotlight-slack/issues/4))
+
+### Features
+
+* **SPO-268:** start an agent chat from a mention ([#4](https://github.com/usespotlightai/terraform-spotlight-slack/issues/4)) ([54aefb8](https://github.com/usespotlightai/terraform-spotlight-slack/commit/54aefb8c73c25b08bbe28143c984610097f3b783))
+
 ## [0.1.0-rc.2](https://github.com/usespotlightai/terraform-spotlight-slack/compare/v0.1.0-rc.1...v0.1.0-rc.2) (2026-11-01)
 
 
