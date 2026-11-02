@@ -123,6 +123,35 @@ run "brings_the_files_of_a_mention_and_a_reply" {
   }
 }
 
+run "shows_the_images_of_a_question_in_it" {
+  command = plan
+
+  assert {
+    condition     = spotlight_integration.this[0].definition.actions["post-question"].uploads.each == "$${{ ask.attachments.filter(file, file.type in [\"image/png\", \"image/jpeg\", \"image/gif\"]) }}"
+    error_message = "A question uploads only the images Slack can show."
+  }
+
+  assert {
+    condition     = spotlight_integration.this[0].definition.actions["post-question"].uploads.prepare.url == "https://slack.com/api/files.getUploadURLExternal" && spotlight_integration.this[0].definition.actions["post-question"].uploads.prepare.capture.id == "$${{ response.file_id }}" && spotlight_integration.this[0].definition.actions["post-question"].uploads.prepare.auth.secrets == ["secret.SLACK_BOT_TOKEN"]
+    error_message = "An upload asks Slack for an address with the bot token, and keeps the file's ID."
+  }
+
+  assert {
+    condition     = spotlight_integration.this[0].definition.actions["post-question"].uploads.send.url == "$${{ prepared.url }}" && !contains(keys(spotlight_integration.this[0].definition.actions["post-question"].uploads.send), "auth")
+    error_message = "A file goes to the address Slack gave, without the bot token."
+  }
+
+  assert {
+    condition     = spotlight_integration.this[0].definition.actions["post-question"].uploads.complete.url == "https://slack.com/api/files.completeUploadExternal"
+    error_message = "The uploads are completed before the question is posted."
+  }
+
+  assert {
+    condition     = strcontains(spotlight_integration.this[0].definition.actions["post-question"].request.body, "uploaded.map(each, {\"type\": \"image\", \"slack_file\": {\"id\": each.prepared.id}, \"alt_text\": each.name})")
+    error_message = "The question shows each uploaded image as an image block."
+  }
+}
+
 run "starts_chats_on_the_given_harness" {
   command = plan
 
