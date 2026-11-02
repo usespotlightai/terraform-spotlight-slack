@@ -68,14 +68,17 @@ locals {
     }
   }
 
-  acknowledge_on = var.acknowledge == null ? {} : {
-    "chat.started" = {
-      action = "acknowledge"
-      to = {
-        channel = "$${{ \"${local.channel_mark}\" in chat.marks && \"${local.message_mark}\" in chat.marks ? chat.marks[\"${local.channel_mark}\"] : \"\" }}"
-        message = "$${{ \"${local.message_mark}\" in chat.marks ? chat.marks[\"${local.message_mark}\"] : \"\" }}"
-      }
+  acknowledge_binding = {
+    action = "acknowledge"
+    to = {
+      channel = "$${{ \"${local.channel_mark}\" in chat.marks && \"${local.message_mark}\" in chat.marks ? chat.marks[\"${local.channel_mark}\"] : \"\" }}"
+      message = "$${{ \"${local.message_mark}\" in chat.marks ? chat.marks[\"${local.message_mark}\"] : \"\" }}"
     }
+  }
+
+  acknowledge_on = var.acknowledge == null ? {} : {
+    "chat.started"      = local.acknowledge_binding
+    "chat.acknowledged" = local.acknowledge_binding
   }
 
   attachments = {
@@ -160,7 +163,7 @@ resource "spotlight_integration" "this" {
         when = "$${{ body.type == \"url_verification\" }}"
         body = "$${{ body.challenge }}"
       }
-      ignoreWhen = "$${{ body.event.bot_id != \"\" }}"
+      ignoreWhen = "$${{ has(body.event.bot_id) && body.event.bot_id != \"\" }}"
       events = [
         {
           when   = "$${{ body.event.type == \"app_mention\" }}"
@@ -184,7 +187,7 @@ resource "spotlight_integration" "this" {
           }
         },
         {
-          when   = "$${{ body.event.type == \"message\" && body.event.thread_ts != \"\" }}"
+          when   = "$${{ body.event.type == \"message\" && has(body.event.thread_ts) && body.event.thread_ts != \"\" }}"
           lookup = local.sender
           raise = {
             happening   = "${var.integration}.message.replied"

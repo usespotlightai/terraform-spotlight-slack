@@ -282,7 +282,7 @@ run "reacts_with_eyes_by_default" {
   }
 
   assert {
-    condition     = spotlight_integration.this[0].definition.on["chat.started"].action == "acknowledge" && !contains(keys(spotlight_integration.this[0].definition.on["chat.started"]), "routes")
+    condition     = spotlight_integration.this[0].definition.on["chat.started"].action == "acknowledge" && !contains(keys(spotlight_integration.this[0].definition.on["chat.started"]), "routes") && spotlight_integration.this[0].definition.on["chat.acknowledged"] == spotlight_integration.this[0].definition.on["chat.started"]
     error_message = "The reaction runs when the chat starts, and never falls back to a route."
   }
 
@@ -313,7 +313,7 @@ run "does_not_react_when_off" {
   }
 
   assert {
-    condition     = !contains(keys(spotlight_integration.this[0].definition.actions), "acknowledge") && !contains(keys(spotlight_integration.this[0].definition.on), "chat.started")
+    condition     = !contains(keys(spotlight_integration.this[0].definition.actions), "acknowledge") && !contains(keys(spotlight_integration.this[0].definition.on), "chat.started") && !contains(keys(spotlight_integration.this[0].definition.on), "chat.acknowledged")
     error_message = "No reaction is defined when acknowledge is null."
   }
 }

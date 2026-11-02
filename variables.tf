@@ -61,7 +61,7 @@ variable "post_message_approval" {
 }
 
 variable "acknowledge" {
-  description = "The name of the emoji the app reacts with on a mention, once the mention has started a chat, as in `eyes`. The bot then needs the `reactions:write` scope. Null turns the reaction off."
+  description = "The name of the emoji the app reacts with on a mention, once the mention has started a chat or reopened a task, as in `eyes`. The bot then needs the `reactions:write` scope. Null turns the reaction off."
   type        = string
   default     = "eyes"
 
