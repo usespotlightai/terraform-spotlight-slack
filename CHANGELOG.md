@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.0-rc.5](https://github.com/usespotlightai/terraform-spotlight-slack/compare/v0.1.0-rc.4...v0.1.0-rc.5) (2026-11-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* the module needs a Spotlight whose `on` takes a list of bindings. `acknowledge` reacts only to a mention that reopens a task. Turn on interactivity with `webhook_url` as the request URL for the buttons.
+
+### Features
+
+* show a thinking status, buttons and task reactions in Slack ([#11](https://github.com/usespotlightai/terraform-spotlight-slack/issues/11)) ([8d484ea](https://github.com/usespotlightai/terraform-spotlight-slack/commit/8d484ea350ff94d34d4e79d328359ee592f5a954))
+
 ## [0.1.0-rc.4](https://github.com/usespotlightai/terraform-spotlight-slack/compare/v0.1.0-rc.3...v0.1.0-rc.4) (2026-11-02)
 
 
