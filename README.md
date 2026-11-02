@@ -2,7 +2,7 @@
 
 A Spotlight integration for a Slack app. A mention of the app starts a chat with the team's agent and gets an `eyes` reaction. The agent answers in the thread and can propose tasks, which you accept or dismiss with a reply. A task's questions are posted to Slack, and a reply in a question's thread answers it.
 
-The module creates a `spotlight_integration` and, unless you keep them yourself, the two `spotlight_secret`s it uses: the app's signing secret, which verifies that deliveries come from Slack, and its bot token, bound to `slack.com`. The integration also gives agents and hooks a `post-message` tool.
+The module creates a `spotlight_integration` and, unless you keep them yourself, the two `spotlight_secret`s it uses: the app's signing secret, which verifies that deliveries come from Slack, and its bot token, bound to `slack.com` and `files.slack.com`. The integration also gives agents and hooks a `post-message` tool.
 
 ```
 Slack ──event (signed with the signing secret)──▶ webhook_url
@@ -61,7 +61,7 @@ output "slack_webhook_url" {
 
 ### Talk to the agent
 
-A mention of the app starts a chat with the team's agent, for the Spotlight member who uses the email of the Slack user: as their sign-in email, or as an additional email they verified in Spotlight under Settings › Emails. See [Add another email to your account](https://docs.usespotlight.ai/docs/administration/add-another-email-to-your-account). The agent reads the repositories of the team's lines and answers in the thread. To continue the chat, mention the app again in the same thread. Only the person who started the chat can talk to it. The chat also shows on that person's Agent page in Spotlight.
+A mention of the app starts a chat with the team's agent, for the Spotlight member who uses the email of the Slack user: as their sign-in email, or as an additional email they verified in Spotlight under Settings › Emails. See [Add another email to your account](https://docs.usespotlight.ai/docs/administration/add-another-email-to-your-account). The agent reads the repositories of the team's lines and answers in the thread. Files attached to a mention or a reply, such as screenshots, go to the agent with it. Spotlight downloads them with the bot token, which needs the `files:read` scope. A file larger than 25 MB is left behind. To continue the chat, mention the app again in the same thread. Only the person who started the chat can talk to it. The chat also shows on that person's Agent page in Spotlight.
 
 When the agent proposes a task, its answer lists the open proposals. Reply `@app accept` to create the task, or `@app dismiss` to remove the proposal. When more than one proposal is open, give its number, as in `@app accept 2`.
 
@@ -71,7 +71,7 @@ A task created from a Slack chat posts its questions to the channel of that chat
 
 ### Prepare the Slack app
 
-1. Give the app's bot the scopes `app_mentions:read`, `chat:write`, `channels:history`, `reactions:write`, `users:read` and `users:read.email`, and reinstall the app.
+1. Give the app's bot the scopes `app_mentions:read`, `chat:write`, `channels:history`, `files:read`, `reactions:write`, `users:read` and `users:read.email`, and reinstall the app.
 2. Copy the app's bot token and signing secret into `bot_token` and `signing_secret`.
 3. Run `terraform apply`.
 4. In the app's event subscriptions, turn events on and give `webhook_url` as the request URL. Slack sends a challenge, the integration responds to it, and Slack marks the address verified.
@@ -109,7 +109,7 @@ Set `post_message_approval` to make a person approve each post first.
 
 ### Keep the secrets yourself
 
-To manage the secrets outside this module, for example read from AWS Secrets Manager, set `create_secrets = false` and give their names in `signing_secret_name` and `bot_token_name`. Bind the bot token's secret to `slack.com` in the `authorization` header, with the prefix `Bearer `.
+To manage the secrets outside this module, for example read from AWS Secrets Manager, set `create_secrets = false` and give their names in `signing_secret_name` and `bot_token_name`. Bind the bot token's secret to `slack.com` and `files.slack.com` in the `authorization` header, with the prefix `Bearer `.
 
 ### Rotating the secrets
 
@@ -186,7 +186,7 @@ No modules.
 | <a name="input_bot_token"></a> [bot\_token](#input\_bot\_token) | The Slack app's bot token (`xoxb-`). Needed when `create_secrets` is true. | `string` | `null` | no |
 | <a name="input_bot_token_name"></a> [bot\_token\_name](#input\_bot\_token\_name) | The name of the workspace secret that holds the bot token. | `string` | `"SLACK_BOT_TOKEN"` | no |
 | <a name="input_create"></a> [create](#input\_create) | Whether to create the integration and its secrets. False creates nothing. | `bool` | `true` | no |
-| <a name="input_create_secrets"></a> [create\_secrets](#input\_create\_secrets) | Whether the module creates the two secrets from `signing_secret` and `bot_token`. False uses the workspace secrets named `signing_secret_name` and `bot_token_name`, which you keep yourself; the bot token's secret must then be bound to `slack.com` in the `authorization` header, with the prefix `Bearer `. | `bool` | `true` | no |
+| <a name="input_create_secrets"></a> [create\_secrets](#input\_create\_secrets) | Whether the module creates the two secrets from `signing_secret` and `bot_token`. False uses the workspace secrets named `signing_secret_name` and `bot_token_name`, which you keep yourself; the bot token's secret must then be bound to `slack.com` and `files.slack.com` in the `authorization` header, with the prefix `Bearer `. | `bool` | `true` | no |
 | <a name="input_harness"></a> [harness](#input\_harness) | The harness that answers in a chat started from a mention, as in `codex`. Null uses Spotlight's default harness. | `string` | `null` | no |
 | <a name="input_integration"></a> [integration](#input\_integration) | The integration's name in the team. It is the last part of the webhook address, and the first part of every happening and mark kind the integration raises, as in `slack.app_mention`. Fixed for the integration's life. | `string` | `"slack"` | no |
 | <a name="input_name"></a> [name](#input\_name) | What the integration is called in the web app. | `string` | `"Slack"` | no |
