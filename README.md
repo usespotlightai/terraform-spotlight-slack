@@ -8,7 +8,7 @@ The module creates a `spotlight_integration` and, unless you keep them yourself,
 Slack ──event (signed with the signing secret)──▶ webhook_url
                                                     │ verify, answer url_verification
                                                     ▼
-                         app_mention  → starts a chat for the person with the Slack user's email
+                         app_mention  → starts a chat for the member who uses the Slack user's email
                                         (users.info), or adds to the chat of that thread,
                                         and reacts to the mention with acknowledge (reactions.add)
                          thread reply → answers the question asked in that thread
@@ -61,11 +61,11 @@ output "slack_webhook_url" {
 
 ### Talk to the agent
 
-A mention of the app starts a chat with the team's agent, for the Spotlight member whose email is the email of the Slack user. The agent reads the repositories of the team's lines and answers in the thread. To continue the chat, mention the app again in the same thread. Only the person who started the chat can talk to it. The chat also shows on that person's Agent page in Spotlight.
+A mention of the app starts a chat with the team's agent, for the Spotlight member who uses the email of the Slack user: as their sign-in email, or as an additional email they verified in Spotlight under Settings › Emails. See [Add another email to your account](https://docs.usespotlight.ai/docs/administration/add-another-email-to-your-account). The agent reads the repositories of the team's lines and answers in the thread. To continue the chat, mention the app again in the same thread. Only the person who started the chat can talk to it. The chat also shows on that person's Agent page in Spotlight.
 
 When the agent proposes a task, its answer lists the open proposals. Reply `@app accept` to create the task, or `@app dismiss` to remove the proposal. When more than one proposal is open, give its number, as in `@app accept 2`.
 
-A mention from a Slack user whose email no member uses gets a reply that says so, and starts no chat. The mention gets the same reply when the email cannot be read: the bot lacks the `users:read.email` scope, or the Slack user has no email, as for a bot or some guests. Set `harness` to choose the harness that answers, as in `codex`. By default, Spotlight uses its default harness.
+A mention from a Slack user whose email is neither the sign-in email nor a verified email of a member gets a reply that says so, and starts no chat. The mention gets the same reply when the email cannot be read: the bot lacks the `users:read.email` scope, or the Slack user has no email, as for a bot or some guests. Set `harness` to choose the harness that answers, as in `codex`. By default, Spotlight uses its default harness.
 
 A task created from a Slack chat posts its questions to the channel of that chat, each in a new thread. `routes` names the channel for the questions of a line's other tasks, by line key.
 
