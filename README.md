@@ -10,7 +10,8 @@ Slack ──event (signed with the signing secret)──▶ webhook_url
                                                     ▼
                          app_mention  → starts a chat for the member who uses the Slack user's email
                                         (users.info), or adds to the chat of that thread,
-                                        and reacts to the mention with acknowledge (reactions.add)
+                                        and reacts to the mention with acknowledge (reactions.add);
+                                        in the thread of a finished task, reopens the task
                          thread reply → answers the question asked in that thread
                                                     │
 the chat answers ─────chat.postMessage (bot token)──┤ in the chat's thread
@@ -81,7 +82,7 @@ On a self-hosted Spotlight, set `spotlight_url` to your deployment's address so 
 
 ### React to a mention
 
-When a mention starts a chat, the app reacts to the mention with the emoji named in `acknowledge`, `eyes` by default. Set another emoji name without colons, as in `white_check_mark`, or `null` to turn the reaction off. The reaction needs the `reactions:write` scope.
+When a mention starts a chat, or reopens a finished task from its thread, the app reacts to the mention with the emoji named in `acknowledge`, `eyes` by default. Set another emoji name without colons, as in `white_check_mark`, or `null` to turn the reaction off. The reaction needs the `reactions:write` scope.
 
 ### Post from a hook or a station
 
@@ -182,7 +183,7 @@ No modules.
 | ---- | ----------- | ---- | ------- | :------: |
 | <a name="input_team"></a> [team](#input\_team) | The key of the team the integration belongs to, as in `core`. | `string` | n/a | yes |
 | <a name="input_workspace"></a> [workspace](#input\_workspace) | The slug of the Spotlight workspace, as in `acme`. | `string` | n/a | yes |
-| <a name="input_acknowledge"></a> [acknowledge](#input\_acknowledge) | The name of the emoji the app reacts with on a mention, once the mention has started a chat, as in `eyes`. The bot then needs the `reactions:write` scope. Null turns the reaction off. | `string` | `"eyes"` | no |
+| <a name="input_acknowledge"></a> [acknowledge](#input\_acknowledge) | The name of the emoji the app reacts with on a mention, once the mention has started a chat or reopened a task, as in `eyes`. The bot then needs the `reactions:write` scope. Null turns the reaction off. | `string` | `"eyes"` | no |
 | <a name="input_bot_token"></a> [bot\_token](#input\_bot\_token) | The Slack app's bot token (`xoxb-`). Needed when `create_secrets` is true. | `string` | `null` | no |
 | <a name="input_bot_token_name"></a> [bot\_token\_name](#input\_bot\_token\_name) | The name of the workspace secret that holds the bot token. | `string` | `"SLACK_BOT_TOKEN"` | no |
 | <a name="input_create"></a> [create](#input\_create) | Whether to create the integration and its secrets. False creates nothing. | `bool` | `true` | no |
