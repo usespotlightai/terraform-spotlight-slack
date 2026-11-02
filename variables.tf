@@ -37,20 +37,19 @@ variable "spotlight_url" {
   default     = "https://app.usespotlight.ai"
 }
 
-variable "line_role" {
-  description = "The role of the line that a mention opens a task on."
+variable "harness" {
+  description = "The harness that answers in a chat started from a mention, as in `codex`. Null uses Spotlight's default harness."
   type        = string
-  default     = "delivery"
-}
+  default     = null
 
-variable "station" {
-  description = "The key of the station that a task opened from a mention starts at."
-  type        = string
-  default     = "triage"
+  validation {
+    condition     = var.harness == null || can(regex("^[a-z0-9]+(-[a-z0-9]+)*$", var.harness))
+    error_message = "harness is lowercase words joined by dashes, as in claude-code."
+  }
 }
 
 variable "routes" {
-  description = "The Slack channel ID for the questions of tasks that were not opened from Slack, by line key, as in `{ delivery = \"C024BE91L\" }`. A task opened from Slack posts its questions to the channel it was opened from."
+  description = "The Slack channel ID for the questions of tasks that do not come from a Slack chat, by line key, as in `{ delivery = \"C024BE91L\" }`. A task created from a Slack chat posts its questions to the channel of that chat, in a new thread."
   type        = map(string)
   default     = {}
 }
@@ -62,7 +61,7 @@ variable "post_message_approval" {
 }
 
 variable "acknowledge" {
-  description = "The name of the emoji the app reacts with on a mention, once the mention has opened a task, as in `eyes`. The bot then needs the `reactions:write` scope. Null turns the reaction off."
+  description = "The name of the emoji the app reacts with on a mention, once the mention has started a chat, as in `eyes`. The bot then needs the `reactions:write` scope. Null turns the reaction off."
   type        = string
   default     = "eyes"
 

@@ -56,18 +56,51 @@ run "creates_the_secrets_and_the_integration" {
   }
 }
 
-run "opens_tasks_where_asked" {
+run "starts_a_chat_from_a_mention" {
   command = plan
 
-  variables {
-    line_role = "support"
-    station   = "intake"
+  assert {
+    condition     = spotlight_integration.this[0].definition.webhook.events[0].raise.opens.chat.by.email == "$${{ email }}" && !contains(keys(spotlight_integration.this[0].definition.webhook.events[0].raise.opens.chat), "harness")
+    error_message = "A mention starts a chat for the person with the email of the Slack user, on the default harness."
   }
 
   assert {
-    condition     = spotlight_integration.this[0].definition.webhook.events[0].raise.opens.lineRole == "support" && spotlight_integration.this[0].definition.webhook.events[0].raise.opens.station == "intake"
-    error_message = "A mention opens a task on the given line role, at the given station."
+    condition     = spotlight_integration.this[0].definition.webhook.events[0].lookup.request.url == "https://slack.com/api/users.info" && spotlight_integration.this[0].definition.webhook.events[0].lookup.request.auth.secrets == ["secret.SLACK_BOT_TOKEN"]
+    error_message = "The email comes from users.info, read with the bot token."
   }
+
+  assert {
+    condition     = spotlight_integration.this[0].definition.webhook.events[0].raise.marks[3].kind == "slack.thread_ts" && spotlight_integration.this[0].definition.webhook.events[0].raise.marks[3].find == false
+    error_message = "A mention keeps the root of its thread, for the replies."
+  }
+
+  assert {
+    condition     = spotlight_integration.this[0].definition.on["chat.replied"].action == "post-reply" && spotlight_integration.this[0].definition.on["chat.refused"].action == "post-reply" && strcontains(spotlight_integration.this[0].definition.on["chat.replied"].to.thread, "chat.marks[\"slack.thread_ts\"]")
+    error_message = "Replies and refusals are posted in the thread of the chat."
+  }
+}
+
+run "starts_chats_on_the_given_harness" {
+  command = plan
+
+  variables {
+    harness = "codex"
+  }
+
+  assert {
+    condition     = spotlight_integration.this[0].definition.webhook.events[0].raise.opens.chat.harness == "codex"
+    error_message = "A mention starts a chat on the given harness."
+  }
+}
+
+run "refuses_a_harness_that_is_not_a_key" {
+  command = plan
+
+  variables {
+    harness = "Claude Code"
+  }
+
+  expect_failures = [var.harness]
 }
 
 run "routes_questions_only_when_given" {
@@ -206,13 +239,13 @@ run "reacts_with_eyes_by_default" {
   }
 
   assert {
-    condition     = spotlight_integration.this[0].definition.on["task.opened"].action == "acknowledge" && !contains(keys(spotlight_integration.this[0].definition.on["task.opened"]), "routes")
-    error_message = "The reaction runs when the task opens, and never falls back to a route."
+    condition     = spotlight_integration.this[0].definition.on["chat.started"].action == "acknowledge" && !contains(keys(spotlight_integration.this[0].definition.on["chat.started"]), "routes")
+    error_message = "The reaction runs when the chat starts, and never falls back to a route."
   }
 
   assert {
     condition     = spotlight_integration.this[0].definition.webhook.events[0].raise.marks[2].kind == "slack.message" && spotlight_integration.this[0].definition.webhook.events[0].raise.marks[2].find == false
-    error_message = "A mention marks the task with its own message."
+    error_message = "A mention marks the chat with its own message."
   }
 }
 
@@ -237,7 +270,7 @@ run "does_not_react_when_off" {
   }
 
   assert {
-    condition     = !contains(keys(spotlight_integration.this[0].definition.actions), "acknowledge") && !contains(keys(spotlight_integration.this[0].definition.on), "task.opened")
+    condition     = !contains(keys(spotlight_integration.this[0].definition.actions), "acknowledge") && !contains(keys(spotlight_integration.this[0].definition.on), "chat.started")
     error_message = "No reaction is defined when acknowledge is null."
   }
 }

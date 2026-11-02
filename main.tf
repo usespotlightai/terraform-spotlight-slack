@@ -15,9 +15,20 @@ locals {
   signing_secret_name = try(spotlight_secret.signing[0].name, var.signing_secret_name)
   bot_token_name      = try(spotlight_secret.bot_token[0].name, var.bot_token_name)
 
-  thread_mark  = "${var.integration}.thread"
-  channel_mark = "${var.integration}.channel"
-  message_mark = "${var.integration}.message"
+  thread_mark    = "${var.integration}.thread"
+  channel_mark   = "${var.integration}.channel"
+  message_mark   = "${var.integration}.message"
+  thread_ts_mark = "${var.integration}.thread_ts"
+
+  in_thread = {
+    channel = "$${{ chat.marks[\"${local.channel_mark}\"] }}"
+    thread  = "$${{ chat.marks[\"${local.thread_ts_mark}\"] }}"
+  }
+
+  chat_on = {
+    "chat.replied" = { action = "post-reply", to = local.in_thread }
+    "chat.refused" = { action = "post-reply", to = local.in_thread }
+  }
 
   on_asked = merge(
     {
@@ -58,14 +69,19 @@ locals {
   }
 
   acknowledge_on = var.acknowledge == null ? {} : {
-    "task.opened" = {
+    "chat.started" = {
       action = "acknowledge"
       to = {
-        channel = "$${{ \"${local.channel_mark}\" in task.marks && \"${local.message_mark}\" in task.marks ? task.marks[\"${local.channel_mark}\"] : \"\" }}"
-        message = "$${{ \"${local.message_mark}\" in task.marks ? task.marks[\"${local.message_mark}\"] : \"\" }}"
+        channel = "$${{ chat.marks[\"${local.channel_mark}\"] }}"
+        message = "$${{ chat.marks[\"${local.message_mark}\"] }}"
       }
     }
   }
+
+  opens_chat = merge(
+    { by = { email = "$${{ email }}" } },
+    var.harness == null ? {} : { harness = var.harness },
+  )
 }
 
 resource "spotlight_secret" "signing" {
@@ -119,19 +135,31 @@ resource "spotlight_integration" "this" {
       events = [
         {
           when = "$${{ body.event.type == \"app_mention\" }}"
+          lookup = {
+            request = {
+              method = "GET"
+              url    = "https://slack.com/api/users.info"
+              query  = { user = "$${{ body.event.user }}" }
+              auth   = { secrets = ["secret.${local.bot_token_name}"] }
+              expect = { success = "$${{ response.ok }}" }
+            }
+            capture = {
+              email = "$${{ response.user.profile.email }}"
+            }
+          }
           raise = {
             happening = "${var.integration}.app_mention"
             label     = "Mentioned"
             summary   = "Mentioned Spotlight in Slack."
+            message   = "$${{ body.event.text.startsWith(\"<@\") ? body.event.text.substring(body.event.text.indexOf(\">\") + 1) : body.event.text }}"
             opens = {
-              lineRole = var.line_role
-              station  = var.station
-              title    = "$${{ body.event.text }}"
+              chat = local.opens_chat
             }
             marks = [
               { kind = local.thread_mark, value = "$${{ body.event.channel + \":\" + (has(body.event.thread_ts) ? body.event.thread_ts : body.event.ts) }}" },
               { kind = local.channel_mark, find = false, value = "$${{ body.event.channel }}" },
               { kind = local.message_mark, find = false, value = "$${{ body.event.ts }}" },
+              { kind = local.thread_ts_mark, find = false, value = "$${{ has(body.event.thread_ts) ? body.event.thread_ts : body.event.ts }}" },
             ]
           }
         },
@@ -164,6 +192,15 @@ resource "spotlight_integration" "this" {
           }
         }
       }
+      post-reply = {
+        request = {
+          method = "POST"
+          url    = "https://slack.com/api/chat.postMessage"
+          auth   = { secrets = ["secret.${local.bot_token_name}"] }
+          body   = "$${{ {\"channel\": target.channel, \"thread_ts\": target.thread, \"text\": reply.link != null ? reply.body + \"\\n\\n<\" + reply.link + \"|Open in Spotlight>\" : reply.body} }}"
+          expect = { success = "$${{ response.ok }}" }
+        }
+      }
       post-message = {
         request = {
           method = "POST"
@@ -184,6 +221,6 @@ resource "spotlight_integration" "this" {
 
     on = merge({
       "task.asked" = local.on_asked
-    }, local.acknowledge_on)
+    }, local.chat_on, local.acknowledge_on)
   }
 }

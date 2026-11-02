@@ -1,6 +1,6 @@
 # terraform-spotlight-slack
 
-A Spotlight integration for a Slack app. A mention of the app opens a task and gets an `eyes` reaction, the task's questions are posted to Slack, and a reply in a question's thread answers it.
+A Spotlight integration for a Slack app. A mention of the app starts a chat with the team's agent and gets an `eyes` reaction. The agent answers in the thread and can propose tasks, which you accept or dismiss with a reply. A task's questions are posted to Slack, and a reply in a question's thread answers it.
 
 The module creates a `spotlight_integration` and, unless you keep them yourself, the two `spotlight_secret`s it uses: the app's signing secret, which verifies that deliveries come from Slack, and its bot token, bound to `slack.com`. The integration also gives agents and hooks a `post-message` tool.
 
@@ -8,10 +8,12 @@ The module creates a `spotlight_integration` and, unless you keep them yourself,
 Slack ──event (signed with the signing secret)──▶ webhook_url
                                                     │ verify, answer url_verification
                                                     ▼
-                         app_mention  → opens a task at line_role / station, marked with its thread
+                         app_mention  → starts a chat for the person with the Slack user's email
+                                        (users.info), or adds to the chat of that thread,
                                         and reacts to the mention with acknowledge (reactions.add)
                          thread reply → answers the question asked in that thread
                                                     │
+the chat answers ─────chat.postMessage (bot token)──┤ in the chat's thread
 task asks a question ──chat.postMessage (bot token)─┘ to the task's channel, or routes[line] otherwise
 ```
 
@@ -57,13 +59,19 @@ output "slack_webhook_url" {
 }
 ```
 
-A task opened from Slack posts its questions to the channel it was opened from. `routes` names the channel for questions from a line's other tasks, by line key.
+### Talk to the agent
 
-By default a mention opens a task on the line whose role is `delivery`, at the station keyed `triage`, as on the built-in Delivery line. Set `line_role` and `station` to open it elsewhere.
+A mention of the app starts a chat with the team's agent, for the Spotlight member whose email is the email of the Slack user. The agent reads the repositories of the team's lines and answers in the thread. To continue the chat, mention the app again in the same thread. Only the person who started the chat can talk to it. The chat also shows on that person's Agent page in Spotlight.
+
+When the agent proposes a task, its answer lists the open proposals. Reply `@app accept` to create the task, or `@app dismiss` to remove the proposal. When more than one proposal is open, give its number, as in `@app accept 2`.
+
+A mention from a Slack user whose email no member uses gets a reply that says so, and starts no chat. Set `harness` to choose the harness that answers, as in `codex`. By default, Spotlight uses its default harness.
+
+A task created from a Slack chat posts its questions to the channel of that chat, each in a new thread. `routes` names the channel for the questions of a line's other tasks, by line key.
 
 ### Prepare the Slack app
 
-1. Give the app's bot the scopes `app_mentions:read`, `chat:write`, `channels:history` and `reactions:write`, and reinstall the app.
+1. Give the app's bot the scopes `app_mentions:read`, `chat:write`, `channels:history`, `reactions:write`, `users:read` and `users:read.email`, and reinstall the app.
 2. Copy the app's bot token and signing secret into `bot_token` and `signing_secret`.
 3. Run `terraform apply`.
 4. In the app's event subscriptions, turn events on and give `webhook_url` as the request URL. Slack sends a challenge, the integration responds to it, and Slack marks the address verified.
@@ -73,7 +81,7 @@ On a self-hosted Spotlight, set `spotlight_url` to your deployment's address so 
 
 ### React to a mention
 
-When a mention opens a task, the app reacts to the mention with the emoji named in `acknowledge`, `eyes` by default. Set another emoji name without colons, as in `white_check_mark`, or `null` to turn the reaction off. The reaction needs the `reactions:write` scope. A task that another integration opened gets no reaction.
+When a mention starts a chat, the app reacts to the mention with the emoji named in `acknowledge`, `eyes` by default. Set another emoji name without colons, as in `white_check_mark`, or `null` to turn the reaction off. The reaction needs the `reactions:write` scope.
 
 ### Post from a hook or a station
 
@@ -174,21 +182,20 @@ No modules.
 | ---- | ----------- | ---- | ------- | :------: |
 | <a name="input_team"></a> [team](#input\_team) | The key of the team the integration belongs to, as in `core`. | `string` | n/a | yes |
 | <a name="input_workspace"></a> [workspace](#input\_workspace) | The slug of the Spotlight workspace, as in `acme`. | `string` | n/a | yes |
-| <a name="input_acknowledge"></a> [acknowledge](#input\_acknowledge) | The name of the emoji the app reacts with on a mention, once the mention has opened a task, as in `eyes`. The bot then needs the `reactions:write` scope. Null turns the reaction off. | `string` | `"eyes"` | no |
+| <a name="input_acknowledge"></a> [acknowledge](#input\_acknowledge) | The name of the emoji the app reacts with on a mention, once the mention has started a chat, as in `eyes`. The bot then needs the `reactions:write` scope. Null turns the reaction off. | `string` | `"eyes"` | no |
 | <a name="input_bot_token"></a> [bot\_token](#input\_bot\_token) | The Slack app's bot token (`xoxb-`). Needed when `create_secrets` is true. | `string` | `null` | no |
 | <a name="input_bot_token_name"></a> [bot\_token\_name](#input\_bot\_token\_name) | The name of the workspace secret that holds the bot token. | `string` | `"SLACK_BOT_TOKEN"` | no |
 | <a name="input_create"></a> [create](#input\_create) | Whether to create the integration and its secrets. False creates nothing. | `bool` | `true` | no |
 | <a name="input_create_secrets"></a> [create\_secrets](#input\_create\_secrets) | Whether the module creates the two secrets from `signing_secret` and `bot_token`. False uses the workspace secrets named `signing_secret_name` and `bot_token_name`, which you keep yourself; the bot token's secret must then be bound to `slack.com` in the `authorization` header, with the prefix `Bearer `. | `bool` | `true` | no |
+| <a name="input_harness"></a> [harness](#input\_harness) | The harness that answers in a chat started from a mention, as in `codex`. Null uses Spotlight's default harness. | `string` | `null` | no |
 | <a name="input_integration"></a> [integration](#input\_integration) | The integration's name in the team. It is the last part of the webhook address, and the first part of every happening and mark kind the integration raises, as in `slack.app_mention`. Fixed for the integration's life. | `string` | `"slack"` | no |
-| <a name="input_line_role"></a> [line\_role](#input\_line\_role) | The role of the line that a mention opens a task on. | `string` | `"delivery"` | no |
 | <a name="input_name"></a> [name](#input\_name) | What the integration is called in the web app. | `string` | `"Slack"` | no |
 | <a name="input_post_message_approval"></a> [post\_message\_approval](#input\_post\_message\_approval) | When set, each use of the `post-message` tool first asks a person, who is shown this text. Null lets agents and hooks post without asking. | `string` | `null` | no |
-| <a name="input_routes"></a> [routes](#input\_routes) | The Slack channel ID for the questions of tasks that were not opened from Slack, by line key, as in `{ delivery = "C024BE91L" }`. A task opened from Slack posts its questions to the channel it was opened from. | `map(string)` | `{}` | no |
+| <a name="input_routes"></a> [routes](#input\_routes) | The Slack channel ID for the questions of tasks that do not come from a Slack chat, by line key, as in `{ delivery = "C024BE91L" }`. A task created from a Slack chat posts its questions to the channel of that chat, in a new thread. | `map(string)` | `{}` | no |
 | <a name="input_secret_version"></a> [secret\_version](#input\_secret\_version) | Change it when `signing_secret` or `bot_token` changes, so Terraform sends the new values to Spotlight. | `number` | `1` | no |
 | <a name="input_signing_secret"></a> [signing\_secret](#input\_signing\_secret) | The Slack app's signing secret. Needed when `create_secrets` is true. | `string` | `null` | no |
 | <a name="input_signing_secret_name"></a> [signing\_secret\_name](#input\_signing\_secret\_name) | The name of the workspace secret that holds the signing secret. | `string` | `"SLACK_SIGNING_SECRET"` | no |
 | <a name="input_spotlight_url"></a> [spotlight\_url](#input\_spotlight\_url) | The address of your Spotlight, used only for the `webhook_url` output. Change it for a self-hosted Spotlight. | `string` | `"https://app.usespotlight.ai"` | no |
-| <a name="input_station"></a> [station](#input\_station) | The key of the station that a task opened from a mention starts at. | `string` | `"triage"` | no |
 
 ## Outputs
 
