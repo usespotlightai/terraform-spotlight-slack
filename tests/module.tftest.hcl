@@ -147,8 +147,13 @@ run "shows_the_images_of_a_question_in_it" {
   }
 
   assert {
-    condition     = strcontains(spotlight_integration.this[0].definition.actions["post-question"].request.body, "uploaded.map(each, {\"type\": \"image\", \"slack_file\": {\"id\": each.prepared.id}, \"alt_text\": each.name})")
+    condition     = strcontains(spotlight_integration.this[0].definition.actions["post-question"].request.body, "uploaded.map(each, {\"type\": \"image\", \"slack_file\": {\"id\": each.prepared.id}, \"alt_text\": (each.name != \"\" ? each.name : \"image\")})")
     error_message = "The question shows each uploaded image as an image block."
+  }
+
+  assert {
+    condition     = spotlight_integration.this[0].definition.actions["post-question"].uploads.prepare.query.filename == "$${{ (file.name != \"\" ? file.name : \"image\") }}" && strcontains(spotlight_integration.this[0].definition.actions["post-question"].uploads.complete.body, "\"title\": (each.name != \"\" ? each.name : \"image\")")
+    error_message = "A file without a name is uploaded and titled as \"image\", because Slack refuses an empty name."
   }
 }
 

@@ -143,7 +143,9 @@ locals {
 
   decisions = "{\"type\": \"actions\", \"elements\": [{\"type\": \"button\", \"style\": \"primary\", \"text\": {\"type\": \"plain_text\", \"text\": \"Accept \" + string(p.number)}, \"value\": \"accept \" + string(p.number)}, {\"type\": \"button\", \"text\": {\"type\": \"plain_text\", \"text\": \"Dismiss \" + string(p.number)}, \"value\": \"dismiss \" + string(p.number)}]}"
 
-  shown_images = "uploaded.map(each, {\"type\": \"image\", \"slack_file\": {\"id\": each.prepared.id}, \"alt_text\": each.name})"
+  image_name = "(FILE.name != \"\" ? FILE.name : \"image\")"
+
+  shown_images = "uploaded.map(each, {\"type\": \"image\", \"slack_file\": {\"id\": each.prepared.id}, \"alt_text\": ${replace(local.image_name, "FILE", "each")}})"
 
   blocks = {
     reply    = "dyn([${replace(local.shown, "TEXT", "reply.body")}]) + dyn(reply.proposals.map(p, ${local.decisions})) + dyn(reply.link != null ? [${replace(local.open_in_spotlight, "LINK", "reply.link")}] : [])"
@@ -157,7 +159,7 @@ locals {
       method = "GET"
       url    = "https://slack.com/api/files.getUploadURLExternal"
       query = {
-        filename = "$${{ file.name }}"
+        filename = "$${{ ${replace(local.image_name, "FILE", "file")} }}"
         length   = "$${{ string(file.size) }}"
       }
       auth   = { secrets = ["secret.${local.bot_token_name}"] }
@@ -175,7 +177,7 @@ locals {
       method = "POST"
       url    = "https://slack.com/api/files.completeUploadExternal"
       auth   = { secrets = ["secret.${local.bot_token_name}"] }
-      body   = "$${{ {\"files\": uploaded.map(each, {\"id\": each.prepared.id, \"title\": each.name})} }}"
+      body   = "$${{ {\"files\": uploaded.map(each, {\"id\": each.prepared.id, \"title\": ${replace(local.image_name, "FILE", "each")}})} }}"
       expect = { success = "$${{ response.ok }}" }
     }
   }
