@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0-rc.7](https://github.com/usespotlightai/terraform-spotlight-slack/compare/v0.1.0-rc.6...v0.1.0-rc.7) (2026-11-03)
+
+
+### Bug Fixes
+
+* wait until Slack has processed a question's images before posting it ([#15](https://github.com/usespotlightai/terraform-spotlight-slack/issues/15)) ([448a780](https://github.com/usespotlightai/terraform-spotlight-slack/commit/448a7806eb2f6bb19ac2add6cc1082b5bb069dd3))
+
 ## [0.1.0-rc.6](https://github.com/usespotlightai/terraform-spotlight-slack/compare/v0.1.0-rc.5...v0.1.0-rc.6) (2026-11-03)
 
 
