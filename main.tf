@@ -180,6 +180,14 @@ locals {
       body   = "$${{ {\"files\": uploaded.map(each, {\"id\": each.prepared.id, \"title\": ${replace(local.image_name, "FILE", "each")}})} }}"
       expect = { success = "$${{ response.ok }}" }
     }
+    ready = {
+      method   = "GET"
+      url      = "https://slack.com/api/files.info"
+      query    = { file = "$${{ prepared.id }}" }
+      auth     = { secrets = ["secret.${local.bot_token_name}"] }
+      expect   = { success = "$${{ response.ok && has(response.file.mimetype) && response.file.mimetype != \"\" }}" }
+      attempts = 10
+    }
   }
 
   attachments = {

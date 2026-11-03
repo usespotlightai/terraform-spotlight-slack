@@ -147,6 +147,11 @@ run "shows_the_images_of_a_question_in_it" {
   }
 
   assert {
+    condition     = spotlight_integration.this[0].definition.actions["post-question"].uploads.ready.url == "https://slack.com/api/files.info" && spotlight_integration.this[0].definition.actions["post-question"].uploads.ready.query.file == "$${{ prepared.id }}" && spotlight_integration.this[0].definition.actions["post-question"].uploads.ready.attempts == 10 && spotlight_integration.this[0].definition.actions["post-question"].uploads.ready.auth.secrets == ["secret.SLACK_BOT_TOKEN"] && strcontains(spotlight_integration.this[0].definition.actions["post-question"].uploads.ready.expect.success, "response.file.mimetype")
+    error_message = "The question waits until Slack has processed each image, since Slack refuses an image block for a file it is still processing."
+  }
+
+  assert {
     condition     = strcontains(spotlight_integration.this[0].definition.actions["post-question"].request.body, "uploaded.map(each, {\"type\": \"image\", \"slack_file\": {\"id\": each.prepared.id}, \"alt_text\": (each.name != \"\" ? each.name : \"image\")})")
     error_message = "The question shows each uploaded image as an image block."
   }

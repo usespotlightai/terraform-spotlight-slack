@@ -73,7 +73,7 @@ A mention from a Slack user whose email is neither the sign-in email nor a verif
 
 A task created from a Slack chat posts its questions to the channel of that chat, each in a new thread, and mentions the person who started the chat. `routes` names the channel for the questions of a line's other tasks, by line key. A reply in the thread of a question answers it. In Spotlight, the reply shows the avatar of the member who uses the email of the Slack user, and a mention of the app at the start of the reply is removed.
 
-A question shows the images attached to it, such as the screenshots of a handover, below its text. Slack shows PNG, JPEG and GIF images. Other files stay in Spotlight. The app uploads the images with the bot token, which needs the `files:write` scope. When an upload fails, or Slack refuses the images, the question is posted without them.
+A question shows the images attached to it, such as the screenshots of a handover, below its text. Slack shows PNG, JPEG and GIF images. Other files stay in Spotlight. The app uploads the images with the bot token, which needs the `files:write` scope. It waits up to 10 seconds until Slack has processed them, which it reads with the `files:read` scope. When an upload fails, an image is still not processed, or Slack refuses the images, the question is posted without them.
 
 ### Prepare the Slack app
 
