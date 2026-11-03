@@ -143,10 +143,43 @@ locals {
 
   decisions = "{\"type\": \"actions\", \"elements\": [{\"type\": \"button\", \"style\": \"primary\", \"text\": {\"type\": \"plain_text\", \"text\": \"Accept \" + string(p.number)}, \"value\": \"accept \" + string(p.number)}, {\"type\": \"button\", \"text\": {\"type\": \"plain_text\", \"text\": \"Dismiss \" + string(p.number)}, \"value\": \"dismiss \" + string(p.number)}]}"
 
+  image_name = "(FILE.name != \"\" ? FILE.name : \"image\")"
+
+  shown_images = "uploaded.map(each, {\"type\": \"image\", \"slack_file\": {\"id\": each.prepared.id}, \"alt_text\": ${replace(local.image_name, "FILE", "each")}})"
+
   blocks = {
     reply    = "dyn([${replace(local.shown, "TEXT", "reply.body")}]) + dyn(reply.proposals.map(p, ${local.decisions})) + dyn(reply.link != null ? [${replace(local.open_in_spotlight, "LINK", "reply.link")}] : [])"
-    question = "${local.mention_block} + dyn([${replace(local.shown, "TEXT", "ask.body")}]) + dyn(ask.link != null ? [${replace(local.open_in_spotlight, "LINK", "ask.link")}] : [])"
+    question = "${local.mention_block} + dyn([${replace(local.shown, "TEXT", "ask.body")}]) + dyn(${local.shown_images}) + dyn(ask.link != null ? [${replace(local.open_in_spotlight, "LINK", "ask.link")}] : [])"
     notice   = "${local.mention_block} + dyn([${replace(local.shown, "TEXT", "target.text")}]) + dyn(task.url != null ? [${replace(local.open_in_spotlight, "LINK", "task.url")}] : [])"
+  }
+
+  images = {
+    each = "$${{ ask.attachments.filter(file, file.type in [\"image/png\", \"image/jpeg\", \"image/gif\"]) }}"
+    prepare = {
+      method = "GET"
+      url    = "https://slack.com/api/files.getUploadURLExternal"
+      query = {
+        filename = "$${{ ${replace(local.image_name, "FILE", "file")} }}"
+        length   = "$${{ string(file.size) }}"
+      }
+      auth   = { secrets = ["secret.${local.bot_token_name}"] }
+      expect = { success = "$${{ response.ok }}" }
+      capture = {
+        url = "$${{ response.upload_url }}"
+        id  = "$${{ response.file_id }}"
+      }
+    }
+    send = {
+      method = "POST"
+      url    = "$${{ prepared.url }}"
+    }
+    complete = {
+      method = "POST"
+      url    = "https://slack.com/api/files.completeUploadExternal"
+      auth   = { secrets = ["secret.${local.bot_token_name}"] }
+      body   = "$${{ {\"files\": uploaded.map(each, {\"id\": each.prepared.id, \"title\": ${replace(local.image_name, "FILE", "each")}})} }}"
+      expect = { success = "$${{ response.ok }}" }
+    }
   }
 
   attachments = {
@@ -300,6 +333,7 @@ resource "spotlight_integration" "this" {
 
     actions = merge({
       post-question = {
+        uploads = local.images
         request = {
           method = "POST"
           url    = "https://slack.com/api/chat.postMessage"

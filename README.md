@@ -73,9 +73,11 @@ A mention from a Slack user whose email is neither the sign-in email nor a verif
 
 A task created from a Slack chat posts its questions to the channel of that chat, each in a new thread, and mentions the person who started the chat. `routes` names the channel for the questions of a line's other tasks, by line key. A reply in the thread of a question answers it. In Spotlight, the reply shows the avatar of the member who uses the email of the Slack user, and a mention of the app at the start of the reply is removed.
 
+A question shows the images attached to it, such as the screenshots of a handover, below its text. Slack shows PNG, JPEG and GIF images. Other files stay in Spotlight. The app uploads the images with the bot token, which needs the `files:write` scope. When an upload fails, or Slack refuses the images, the question is posted without them.
+
 ### Prepare the Slack app
 
-1. Give the app's bot the scopes `app_mentions:read`, `chat:write`, `channels:history`, `files:read`, `reactions:write`, `users:read` and `users:read.email`, and reinstall the app. To show the status while the agent works, also turn on **Agents & AI Apps** in the app's settings.
+1. Give the app's bot the scopes `app_mentions:read`, `chat:write`, `channels:history`, `files:read`, `files:write`, `reactions:write`, `users:read` and `users:read.email`, and reinstall the app. To show the status while the agent works, also turn on **Agents & AI Apps** in the app's settings.
 2. Copy the app's bot token and signing secret into `bot_token` and `signing_secret`.
 3. Run `terraform apply`.
 4. In the app's event subscriptions, turn events on and give `webhook_url` as the request URL. Slack sends a challenge, the integration responds to it, and Slack marks the address verified.
