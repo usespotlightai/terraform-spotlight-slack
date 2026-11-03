@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0-rc.6](https://github.com/usespotlightai/terraform-spotlight-slack/compare/v0.1.0-rc.5...v0.1.0-rc.6) (2026-11-03)
+
+
+### Features
+
+* show a question's images in its Slack message ([#13](https://github.com/usespotlightai/terraform-spotlight-slack/issues/13)) ([8384ce7](https://github.com/usespotlightai/terraform-spotlight-slack/commit/8384ce7edf861f19399c215599c71710a5dff7dc))
+
 ## [0.1.0-rc.5](https://github.com/usespotlightai/terraform-spotlight-slack/compare/v0.1.0-rc.4...v0.1.0-rc.5) (2026-11-02)
 
 
