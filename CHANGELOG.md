@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0-rc.8](https://github.com/usespotlightai/terraform-spotlight-slack/compare/v0.1.0-rc.7...v0.1.0-rc.8) (2026-11-08)
+
+
+### Bug Fixes
+
+* set the thread status on chat.run-assigned ([#17](https://github.com/usespotlightai/terraform-spotlight-slack/issues/17)) ([3098634](https://github.com/usespotlightai/terraform-spotlight-slack/commit/3098634d00c48b016709f40689b11cfc54430fca))
+
 ## [0.1.0-rc.7](https://github.com/usespotlightai/terraform-spotlight-slack/compare/v0.1.0-rc.6...v0.1.0-rc.7) (2026-11-03)
 
 
