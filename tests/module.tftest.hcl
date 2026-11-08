@@ -80,7 +80,7 @@ run "starts_a_chat_from_a_mention" {
   }
 
   assert {
-    condition     = strcontains(spotlight_integration.this[0].definition.on["chat.replied"][0].to.channel, "\"slack.channel\" in chat.marks") && strcontains(spotlight_integration.this[0].definition.on["chat.dispatched"][0].to.thread, "\"slack.thread_ts\" in chat.marks")
+    condition     = strcontains(spotlight_integration.this[0].definition.on["chat.replied"][0].to.channel, "\"slack.channel\" in chat.marks") && strcontains(spotlight_integration.this[0].definition.on["chat.run-assigned"][0].to.thread, "\"slack.thread_ts\" in chat.marks")
     error_message = "A chat without the integration's marks is not addressed, and no expression fails on it."
   }
 }
@@ -321,8 +321,8 @@ run "shows_a_status_while_the_agent_works" {
   }
 
   assert {
-    condition     = spotlight_integration.this[0].definition.on["chat.dispatched"][0].action == "set-status" && !contains(keys(spotlight_integration.this[0].definition.on), "chat.started")
-    error_message = "The status is set each time a run is dispatched for the chat, and nothing reacts to a mention that starts a chat."
+    condition     = spotlight_integration.this[0].definition.on["chat.run-assigned"][0].action == "set-status" && !contains(keys(spotlight_integration.this[0].definition.on), "chat.started")
+    error_message = "The status is set each time a run is assigned to the chat, and nothing reacts to a mention that starts a chat."
   }
 }
 
@@ -334,7 +334,7 @@ run "shows_no_status_when_off" {
   }
 
   assert {
-    condition     = !contains(keys(spotlight_integration.this[0].definition.actions), "set-status") && !contains(keys(spotlight_integration.this[0].definition.on), "chat.dispatched")
+    condition     = !contains(keys(spotlight_integration.this[0].definition.actions), "set-status") && !contains(keys(spotlight_integration.this[0].definition.on), "chat.run-assigned")
     error_message = "No status is defined when status is null."
   }
 }
