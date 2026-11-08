@@ -53,7 +53,7 @@ locals {
       "chat.refused" = [{ action = "post-reply", to = local.in_thread }]
     },
     var.status == null ? {} : {
-      "chat.dispatched" = [{ action = "set-status", to = local.in_thread }]
+      "chat.run-assigned" = [{ action = "set-status", to = local.in_thread }]
     },
     length(local.reopened) == 0 ? {} : {
       "chat.acknowledged" = local.reopened
