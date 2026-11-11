@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0-rc.10](https://github.com/usespotlightai/terraform-spotlight-slack/compare/v0.1.0-rc.9...v0.1.0-rc.10) (2026-11-11)
+
+
+### Bug Fixes
+
+* list the task's pull requests when it finishes ([#21](https://github.com/usespotlightai/terraform-spotlight-slack/issues/21)) ([33ffc34](https://github.com/usespotlightai/terraform-spotlight-slack/commit/33ffc3433f6022770b6482050b447b080ba9ad2d))
+
 ## [0.1.0-rc.9](https://github.com/usespotlightai/terraform-spotlight-slack/compare/v0.1.0-rc.8...v0.1.0-rc.9) (2026-11-11)
 
 
