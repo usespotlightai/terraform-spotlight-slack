@@ -477,3 +477,25 @@ run "does_not_react_to_a_reopening_mention_when_off" {
     error_message = "Nothing is bound to chat.acknowledged when both reactions are null."
   }
 }
+
+run "shows_the_mark_of_slack_by_default" {
+  command = plan
+
+  assert {
+    condition     = startswith(spotlight_integration.this[0].definition.logo, "data:image/svg+xml;base64,") && base64decode(trimprefix(spotlight_integration.this[0].definition.logo, "data:image/svg+xml;base64,")) == file("logo.svg")
+    error_message = "By default the integration shows the mark of Slack, from logo.svg."
+  }
+}
+
+run "shows_the_logo_it_is_given" {
+  command = plan
+
+  variables {
+    logo = "https://example.com/logo.svg"
+  }
+
+  assert {
+    condition     = spotlight_integration.this[0].definition.logo == "https://example.com/logo.svg"
+    error_message = "The integration shows the logo it is given."
+  }
+}
