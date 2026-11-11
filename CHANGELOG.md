@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0-rc.9](https://github.com/usespotlightai/terraform-spotlight-slack/compare/v0.1.0-rc.8...v0.1.0-rc.9) (2026-11-11)
+
+
+### Features
+
+* send the Slack mark as the integration's logo ([#19](https://github.com/usespotlightai/terraform-spotlight-slack/issues/19)) ([1a63e89](https://github.com/usespotlightai/terraform-spotlight-slack/commit/1a63e89e30cd25ddd3ba4d18243b122dcb3e3acb))
+
 ## [0.1.0-rc.8](https://github.com/usespotlightai/terraform-spotlight-slack/compare/v0.1.0-rc.7...v0.1.0-rc.8) (2026-11-08)
 
 
