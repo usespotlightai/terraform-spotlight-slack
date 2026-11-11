@@ -91,7 +91,7 @@ locals {
         to = {
           channel = local.on_root.channel
           thread  = "$${{ ${local.task_root.thread} }}"
-          text    = "$${{ \"The task “\" + task.title + \"” is complete.\" + (task.pullRequest != null ? \" Pull request: \" + task.pullRequest : \"\") }}"
+          text    = "$${{ \"The task “\" + task.title + \"” is complete.\" + (size(task.pullRequests) > 0 ? \" Pull requests: \" + task.pullRequests.join(\", \") : \"\") }}"
         }
       }],
     )
