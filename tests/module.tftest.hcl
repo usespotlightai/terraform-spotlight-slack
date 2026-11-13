@@ -387,6 +387,112 @@ run "only_says_when_a_task_ends_when_reactions_are_off" {
   }
 }
 
+run "posts_questions_and_endings_by_default" {
+  command = plan
+
+  assert {
+    condition     = contains(keys(spotlight_integration.this[0].definition.on), "task.asked") && !contains(keys(spotlight_integration.this[0].definition.on), "inbox-request.opened") && !contains(keys(spotlight_integration.this[0].definition.on), "notice.raised")
+    error_message = "By default the app posts questions and endings, and no inbox requests or notices."
+  }
+}
+
+run "posts_only_what_notify_names" {
+  command = plan
+
+  variables {
+    notify = ["inbox_requests"]
+  }
+
+  assert {
+    condition     = !contains(keys(spotlight_integration.this[0].definition.on), "task.asked") && [for each in spotlight_integration.this[0].definition.on["task.finished"] : each.action] == ["unreact", "react"]
+    error_message = "Without questions and finished, no question or ending message is posted, and the reactions stay."
+  }
+
+  assert {
+    condition     = !contains(keys(spotlight_integration.this[0].definition.on), "notice.raised")
+    error_message = "Without notices, no notice is posted."
+  }
+
+  assert {
+    condition     = spotlight_integration.this[0].definition.on["inbox-request.opened"][0].action == "post-request"
+    error_message = "inbox_requests posts the inbox requests."
+  }
+}
+
+run "names_the_channel_of_the_task_and_the_routes_for_inbox_requests" {
+  command = plan
+
+  variables {
+    notify = ["questions", "finished", "inbox_requests"]
+    routes = { delivery = "C024BE91L" }
+  }
+
+  assert {
+    condition     = spotlight_integration.this[0].definition.on["inbox-request.opened"][0].routes.delivery == "C024BE91L" && strcontains(spotlight_integration.this[0].definition.on["inbox-request.opened"][0].to.channel, "task.marks[\"slack.channel\"]")
+    error_message = "An inbox request goes to the channel of its task, or else to the channel of its line."
+  }
+
+  assert {
+    condition     = strcontains(spotlight_integration.this[0].definition.actions["post-request"].request.body, "request.form == \"grade\"") && strcontains(spotlight_integration.this[0].definition.actions["post-request"].request.body, "request.link")
+    error_message = "The request says what it asks for and links to it."
+  }
+
+  assert {
+    condition     = length(spotlight_integration.this[0].definition.actions["post-request"].request.body) < 2000 && length(spotlight_integration.this[0].definition.actions["post-team-notice"].request.body) < 2000
+    error_message = "Each post body fits the 2000-character limit of an expression."
+  }
+}
+
+run "posts_notices_to_the_notices_channel" {
+  command = plan
+
+  variables {
+    notify          = ["questions", "finished", "notices"]
+    notices_channel = "C0NOTICES"
+  }
+
+  assert {
+    condition     = spotlight_integration.this[0].definition.on["notice.raised"][0].action == "post-team-notice" && strcontains(spotlight_integration.this[0].definition.on["notice.raised"][0].to.channel, "\"C0NOTICES\"")
+    error_message = "Notices go to notices_channel."
+  }
+
+  assert {
+    condition     = strcontains(spotlight_integration.this[0].definition.actions["post-team-notice"].request.body, "notice.externalLink.url") && strcontains(spotlight_integration.this[0].definition.actions["post-team-notice"].request.body, "notice.link")
+    error_message = "A notice links to its pull request and to Spotlight."
+  }
+}
+
+run "refuses_notices_without_a_channel" {
+  command = plan
+
+  variables {
+    notify = ["notices"]
+  }
+
+  expect_failures = [var.notices_channel]
+}
+
+run "refuses_a_notices_channel_that_is_not_an_id" {
+  command = plan
+
+  variables {
+    notify          = ["notices"]
+    notices_channel = "#general"
+  }
+
+  expect_failures = [var.notices_channel]
+}
+
+run "refuses_an_unknown_notification" {
+  command = plan
+
+  variables {
+    notify = ["questions", "everything"]
+  }
+
+  expect_failures = [var.notify]
+}
+
 run "refuses_a_status_that_breaks_the_expression" {
   command = plan
 

@@ -1,6 +1,6 @@
 # terraform-spotlight-slack
 
-A Spotlight integration for a Slack app. A mention of the app starts a chat with the team's agent. While the agent works, Slack shows "is thinking…" in the thread. The agent answers in the thread and can propose tasks, which you accept or dismiss with a button or a reply. A task's questions are posted to Slack and mention the person who started the chat, and a reply in a question's thread answers it. When the task is complete or fails, the app reacts to the thread and says so in it.
+A Spotlight integration for a Slack app. A mention of the app starts a chat with the team's agent. While the agent works, Slack shows "is thinking…" in the thread. The agent answers in the thread and can propose tasks, which you accept or dismiss with a button or a reply. A task's questions are posted to Slack and mention the person who started the chat, and a reply in a question's thread answers it. When the task is complete or fails, the app reacts to the thread and says so in it. The app can also post the requests that wait in the inbox and the team's notices.
 
 The module creates a `spotlight_integration` and, unless you keep them yourself, the two `spotlight_secret`s it uses: the app's signing secret, which verifies that deliveries come from Slack, and its bot token, bound to `slack.com` and `files.slack.com`. The integration also gives agents and hooks a `post-message` tool.
 
@@ -18,6 +18,8 @@ Slack ──event (signed with the signing secret)──▶ webhook_url
 the agent works ──assistant.threads.setStatus───────┤ "is thinking…" in the chat's thread
 the chat answers ─────chat.postMessage (bot token)──┤ in the chat's thread, with buttons
 task asks a question ──chat.postMessage (bot token)─┤ to the task's channel, or routes[line] otherwise
+inbox request opens ───chat.postMessage (bot token)─┤ to the task's channel, or routes[line] otherwise
+notice is raised ──────chat.postMessage (bot token)─┤ to notices_channel
 run fails / task ends ──reactions + chat.postMessage┘ on and in the task's thread
 ```
 
@@ -90,9 +92,37 @@ On a self-hosted Spotlight, set `spotlight_url` to your deployment's address so 
 
 While a run of the agent works on a chat, Slack shows the text in `status`, `is thinking…` by default, at the bottom of the chat's thread. Slack removes it when the app replies. Set `status` to `null` to turn it off.
 
-When a run of a task from a Slack chat fails, the app reacts with the emoji in `failed_reaction`, `x` by default. The task stays open and asks its question as usual. When the task is complete, the app removes that reaction, reacts with the emoji in `finished_reaction`, `white_check_mark` by default, and says in the thread that the task is complete, with its pull request. The reactions go on the first message of the task's latest question thread. When the task asked no question, they go on the mention that started the chat. Set a reaction to `null` to turn it off. The message stays.
+When a run of a task from a Slack chat fails, the app reacts with the emoji in `failed_reaction`, `x` by default. The task stays open and asks its question as usual. When the task is complete, the app removes that reaction, reacts with the emoji in `finished_reaction`, `white_check_mark` by default, and says in the thread that the task is complete, with its pull request. The reactions go on the first message of the task's latest question thread. When the task asked no question, they go on the mention that started the chat. Set a reaction to `null` to turn it off. To turn off the message, remove `finished` from `notify`.
 
 A mention in the thread of a finished task reopens the task. The app reacts to the mention with the emoji in `acknowledge`, `eyes` by default, and removes `finished_reaction` from the first message of the thread. Set `acknowledge` to `null` to turn that reaction off.
+
+### Choose what the app posts
+
+`notify` sets what the app posts to Slack. By default, it is `["questions", "finished"]`.
+
+| Value | What the app posts | Where |
+|---|---|---|
+| `questions` | The questions of tasks | The channel of the task's Slack chat, or else `routes[line]` |
+| `finished` | A message that the task is complete | The task's thread |
+| `inbox_requests` | A request that waits for a person in the inbox: a run to grade, proposed memories, or a station alert | The channel of the task's Slack chat, or else `routes[line]` |
+| `notices` | A notice of the team that is addressed to nobody, such as a config pull request that Spotlight opened | `notices_channel` |
+
+Each post has an **Open in Spotlight** button. A notice that links to a pull request also has a button to it. When a request has no channel, because its task did not come from Slack and its line has no route, the app does not post it. A notice that is addressed to one person stays in that person's inbox. The app posts a request or a notice once, when it first opens. It does not post it again when it opens again.
+
+```hcl
+module "slack" {
+  # ...
+
+  notify          = ["questions", "finished", "inbox_requests", "notices"]
+  notices_channel = "C024BE91L"
+
+  routes = {
+    delivery = "C024BE91L"
+  }
+}
+```
+
+`notices_channel` is needed when `notify` holds `notices`. Without `questions`, the app posts no questions, so nobody can answer them in Slack. The reactions in `finished_reaction` and `failed_reaction` do not depend on `notify`.
 
 ### Post from a hook or a station
 
@@ -204,8 +234,10 @@ No modules.
 | <a name="input_integration"></a> [integration](#input\_integration) | The integration's name in the team. It is the last part of the webhook address, and the first part of every happening and mark kind the integration raises, as in `slack.app_mention`. Fixed for the integration's life. | `string` | `"slack"` | no |
 | <a name="input_logo"></a> [logo](#input\_logo) | The mark the web app shows for the integration, as a base64 data URI of an SVG, PNG, WebP or JPEG image or as an https address. By default, the mark of Slack. | `string` | `null` | no |
 | <a name="input_name"></a> [name](#input\_name) | What the integration is called in the web app. | `string` | `"Slack"` | no |
+| <a name="input_notices_channel"></a> [notices\_channel](#input\_notices\_channel) | The Slack channel ID for team notices, as in `C024BE91L`. Needed when `notify` holds `notices`, and not used otherwise. | `string` | `null` | no |
+| <a name="input_notify"></a> [notify](#input\_notify) | What the app posts to Slack. `questions` posts the questions of tasks. `finished` says in the thread of a task that the task is complete. `inbox_requests` posts the requests that wait for a person in the inbox, such as a run to grade, proposed memories or a station alert, to the channel of their task, or else to `routes[line]`. `notices` posts the notices of the team that are addressed to nobody, such as a config pull request that Spotlight opened, to `notices_channel`. | `set(string)` | <pre>[<br/>  "questions",<br/>  "finished"<br/>]</pre> | no |
 | <a name="input_post_message_approval"></a> [post\_message\_approval](#input\_post\_message\_approval) | When set, each use of the `post-message` tool first asks a person, who is shown this text. Null lets agents and hooks post without asking. | `string` | `null` | no |
-| <a name="input_routes"></a> [routes](#input\_routes) | The Slack channel ID for the questions of tasks that do not come from a Slack chat, by line key, as in `{ delivery = "C024BE91L" }`. A task created from a Slack chat posts its questions to the channel of that chat, in a new thread. | `map(string)` | `{}` | no |
+| <a name="input_routes"></a> [routes](#input\_routes) | The Slack channel ID for the questions and inbox requests of tasks that do not come from a Slack chat, by line key, as in `{ delivery = "C024BE91L" }`. A task created from a Slack chat posts its questions to the channel of that chat, in a new thread. | `map(string)` | `{}` | no |
 | <a name="input_secret_version"></a> [secret\_version](#input\_secret\_version) | Change it when `signing_secret` or `bot_token` changes, so Terraform sends the new values to Spotlight. | `number` | `1` | no |
 | <a name="input_signing_secret"></a> [signing\_secret](#input\_signing\_secret) | The Slack app's signing secret. Needed when `create_secrets` is true. | `string` | `null` | no |
 | <a name="input_signing_secret_name"></a> [signing\_secret\_name](#input\_signing\_secret\_name) | The name of the workspace secret that holds the signing secret. | `string` | `"SLACK_SIGNING_SECRET"` | no |
