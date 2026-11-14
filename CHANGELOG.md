@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0-rc.11](https://github.com/usespotlightai/terraform-spotlight-slack/compare/v0.1.0-rc.10...v0.1.0-rc.11) (2026-11-14)
+
+
+### Features
+
+* choose what the app posts to Slack ([#23](https://github.com/usespotlightai/terraform-spotlight-slack/issues/23)) ([7d2e2f1](https://github.com/usespotlightai/terraform-spotlight-slack/commit/7d2e2f1d69196f36175b38c8fd7b0b193ddcd2f8))
+
 ## [0.1.0-rc.10](https://github.com/usespotlightai/terraform-spotlight-slack/compare/v0.1.0-rc.9...v0.1.0-rc.10) (2026-11-11)
 
 
