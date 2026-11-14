@@ -86,14 +86,14 @@ locals {
         action = "react"
         to     = merge(local.on_root, { emoji = "$${{ \"${var.finished_reaction}\" }}" })
       }],
-      [{
+      [for each in [{
         action = "post-notice"
         to = {
           channel = local.on_root.channel
           thread  = "$${{ ${local.task_root.thread} }}"
           text    = "$${{ \"The task “\" + task.title + \"” is complete.\" + (size(task.pullRequests) > 0 ? \" Pull requests: \" + task.pullRequests.join(\", \") : \"\") }}"
         }
-      }],
+      }] : each if contains(var.notify, "finished")],
     )
     "task.failed" = var.failed_reaction == null ? [] : [{
       action = "react"
@@ -113,6 +113,28 @@ locals {
       ]
     },
     length(var.routes) > 0 ? { routes = var.routes } : {},
+  )
+
+  request_phrase = "(request.form == \"memories\" ? \"A run proposed memories for the team.\" : request.form == \"alert\" ? \"Station alert fired.\" : request.form == \"grade\" ? \"A judged run needs your grade. Grades check the judge.\" : \"A request waits for you in Spotlight.\")"
+  request_text   = "(${local.request_phrase} + \" Task: “\" + task.title + \"”.\")"
+
+  inbox_on = merge(
+    contains(var.notify, "questions") ? { "task.asked" = [local.on_asked] } : {},
+    contains(var.notify, "inbox_requests") ? {
+      "inbox-request.opened" = [merge(
+        {
+          action = "post-request"
+          to     = { channel = local.on_root.channel }
+        },
+        length(var.routes) > 0 ? { routes = var.routes } : {},
+      )]
+    } : {},
+    contains(var.notify, "notices") ? {
+      "notice.raised" = [{
+        action = "post-team-notice"
+        to     = { channel = "$${{ \"${coalesce(var.notices_channel, "-")}\" }}" }
+      }]
+    } : {},
   )
 
   post_message_tool = merge(
@@ -153,7 +175,13 @@ locals {
     reply    = "dyn([${replace(local.shown, "TEXT", "reply.body")}]) + dyn(reply.proposals.map(p, ${local.decisions})) + dyn(reply.link != null ? [${replace(local.open_in_spotlight, "LINK", "reply.link")}] : [])"
     question = "${local.mention_block} + dyn([${replace(local.shown, "TEXT", "ask.body")}]) + dyn(${local.shown_images}) + dyn(ask.link != null ? [${replace(local.open_in_spotlight, "LINK", "ask.link")}] : [])"
     notice   = "${local.mention_block} + dyn([${replace(local.shown, "TEXT", "target.text")}]) + dyn(task.url != null ? [${replace(local.open_in_spotlight, "LINK", "task.url")}] : [])"
+    request  = "dyn([${local.request_text}].map(text, ${replace(local.shown, "TEXT", "text")})) + dyn(request.link != null ? [${replace(local.open_in_spotlight, "LINK", "request.link")}] : [])"
+    raised   = "dyn([${local.notice_text}].map(text, ${replace(local.shown, "TEXT", "text")})) + dyn(notice.externalLink != null || notice.link != null ? [${local.notice_buttons}] : [])"
   }
+
+  notice_text = "(\"**\" + notice.headline + \"**\" + notice.points.map(point, \"\\n- \" + point).join(\"\"))"
+
+  notice_buttons = "{\"type\": \"actions\", \"elements\": dyn(notice.externalLink != null ? [{\"type\": \"button\", \"text\": {\"type\": \"plain_text\", \"text\": notice.externalLink.label}, \"url\": notice.externalLink.url}] : []) + dyn(notice.link != null ? [{\"type\": \"button\", \"text\": {\"type\": \"plain_text\", \"text\": \"Open in Spotlight\"}, \"url\": notice.link}] : [])}"
 
   images = {
     each = "$${{ ask.attachments.filter(file, file.type in [\"image/png\", \"image/jpeg\", \"image/gif\"]) }}"
@@ -374,6 +402,24 @@ resource "spotlight_integration" "this" {
           expect = { success = "$${{ response.ok }}" }
         }
       }
+      post-request = {
+        request = {
+          method = "POST"
+          url    = "https://slack.com/api/chat.postMessage"
+          auth   = { secrets = ["secret.${local.bot_token_name}"] }
+          body   = "$${{ {\"channel\": target.channel, \"text\": ${local.request_text}, \"blocks\": ${local.blocks.request}} }}"
+          expect = { success = "$${{ response.ok }}" }
+        }
+      }
+      post-team-notice = {
+        request = {
+          method = "POST"
+          url    = "https://slack.com/api/chat.postMessage"
+          auth   = { secrets = ["secret.${local.bot_token_name}"] }
+          body   = "$${{ {\"channel\": target.channel, \"text\": notice.headline, \"blocks\": ${local.blocks.raised}} }}"
+          expect = { success = "$${{ response.ok }}" }
+        }
+      }
       unreact = {
         request = {
           method = "POST"
@@ -410,8 +456,6 @@ resource "spotlight_integration" "this" {
       post-message = local.post_message_tool
     }
 
-    on = merge({
-      "task.asked" = [local.on_asked]
-    }, local.chat_on, { for event, bindings in local.task_on : event => bindings if length(bindings) > 0 })
+    on = merge(local.inbox_on, local.chat_on, { for event, bindings in local.task_on : event => bindings if length(bindings) > 0 })
   }
 }

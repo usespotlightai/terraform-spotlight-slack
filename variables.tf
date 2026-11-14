@@ -54,8 +54,30 @@ variable "harness" {
   }
 }
 
+variable "notify" {
+  description = "What the app posts to Slack. `questions` posts the questions of tasks. `finished` says in the thread of a task that the task is complete. `inbox_requests` posts the requests that wait for a person in the inbox, such as a run to grade, proposed memories or a station alert, to the channel of their task, or else to `routes[line]`. `notices` posts the notices of the team that are addressed to nobody, such as a config pull request that Spotlight opened, to `notices_channel`."
+  type        = set(string)
+  default     = ["questions", "finished"]
+
+  validation {
+    condition     = alltrue([for each in var.notify : contains(["questions", "finished", "inbox_requests", "notices"], each)])
+    error_message = "notify holds only questions, finished, inbox_requests and notices."
+  }
+}
+
+variable "notices_channel" {
+  description = "The Slack channel ID for team notices, as in `C024BE91L`. Needed when `notify` holds `notices`, and not used otherwise."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.notices_channel == null ? !contains(var.notify, "notices") : can(regex("^[A-Z0-9]+$", var.notices_channel))
+    error_message = "notices_channel is a Slack channel ID, as in C024BE91L, and is needed when notify holds notices."
+  }
+}
+
 variable "routes" {
-  description = "The Slack channel ID for the questions of tasks that do not come from a Slack chat, by line key, as in `{ delivery = \"C024BE91L\" }`. A task created from a Slack chat posts its questions to the channel of that chat, in a new thread."
+  description = "The Slack channel ID for the questions and inbox requests of tasks that do not come from a Slack chat, by line key, as in `{ delivery = \"C024BE91L\" }`. A task created from a Slack chat posts its questions to the channel of that chat, in a new thread."
   type        = map(string)
   default     = {}
 }
