@@ -15,7 +15,23 @@ locals {
   logo = coalesce(var.logo, "data:image/svg+xml;base64,${filebase64("${path.module}/logo.svg")}")
 
   signing_secret_name = try(spotlight_secret.signing[0].name, var.signing_secret_name)
-  bot_token_name      = try(spotlight_secret.bot_token[0].name, var.bot_token_name)
+  client_secret_name  = try(spotlight_secret.client[0].name, var.client_secret_name)
+
+  webhook_url  = "${trimsuffix(var.spotlight_url, "/")}/api/webhooks/w/${var.workspace}/t/${var.team}/${var.integration}"
+  callback_url = "${trimsuffix(var.spotlight_url, "/")}/api/integrations/oauth/callback"
+
+  connected = { oauth2 = { connection = true } }
+
+  bot_scopes = [
+    "app_mentions:read",
+    "channels:history",
+    "chat:write",
+    "files:read",
+    "files:write",
+    "reactions:write",
+    "users:read",
+    "users:read.email",
+  ]
 
   thread_mark    = "${var.integration}.thread"
   channel_mark   = "${var.integration}.channel"
@@ -154,7 +170,7 @@ locals {
       request = {
         method = "POST"
         url    = "https://slack.com/api/assistant.threads.setStatus"
-        auth   = { secrets = ["secret.${local.bot_token_name}"] }
+        auth   = local.connected
         body   = "$${{ {\"channel_id\": target.channel, \"thread_ts\": target.thread, \"status\": \"${var.status}\"} }}"
         expect = { success = "$${{ response.ok }}" }
       }
@@ -192,7 +208,7 @@ locals {
         filename = "$${{ ${replace(local.image_name, "FILE", "file")} }}"
         length   = "$${{ string(file.size) }}"
       }
-      auth   = { secrets = ["secret.${local.bot_token_name}"] }
+      auth   = local.connected
       expect = { success = "$${{ response.ok }}" }
       capture = {
         url = "$${{ response.upload_url }}"
@@ -206,7 +222,7 @@ locals {
     complete = {
       method = "POST"
       url    = "https://slack.com/api/files.completeUploadExternal"
-      auth   = { secrets = ["secret.${local.bot_token_name}"] }
+      auth   = local.connected
       body   = "$${{ {\"files\": uploaded.map(each, {\"id\": each.prepared.id, \"title\": ${replace(local.image_name, "FILE", "each")}})} }}"
       expect = { success = "$${{ response.ok }}" }
     }
@@ -214,21 +230,21 @@ locals {
       method   = "GET"
       url      = "https://slack.com/api/files.info"
       query    = { file = "$${{ prepared.id }}" }
-      auth     = { secrets = ["secret.${local.bot_token_name}"] }
+      auth     = local.connected
       expect   = { success = "$${{ response.ok && has(response.file.mimetype) && response.file.mimetype != \"\" }}" }
       attempts = 10
     }
   }
 
   attachments = {
-    each = "$${{ has(body.event.files) ? body.event.files.filter(file, has(file.url_private_download)) : [] }}"
+    each = "$${{ has(body.event.files) ? body.event.files.filter(file, has(file.url_private_download) && file.url_private_download.startsWith(\"https://files.slack.com/\")) : [] }}"
     name = "$${{ has(file.name) ? file.name : \"\" }}"
     type = "$${{ has(file.mimetype) ? file.mimetype : \"\" }}"
     size = "$${{ has(file.size) ? file.size : -1 }}"
     fetch = {
       method = "GET"
       url    = "$${{ file.url_private_download }}"
-      auth   = { secrets = ["secret.${local.bot_token_name}"] }
+      auth   = local.connected
       expect = { success = "$${{ status >= 200 && status < 300 && ((has(file.mimetype) && file.mimetype.lowerAscii() == \"text/html\") || !(\"content-type\" in headers) || !headers[\"content-type\"].lowerAscii().startsWith(\"text/html\")) }}" }
     }
   }
@@ -238,7 +254,7 @@ locals {
       method = "GET"
       url    = "https://slack.com/api/users.info"
       query  = { user = "$${{ body.event.user }}" }
-      auth   = { secrets = ["secret.${local.bot_token_name}"] }
+      auth   = local.connected
       expect = { success = "$${{ response.ok }}" }
     }
     capture = {
@@ -270,16 +286,13 @@ resource "spotlight_secret" "signing" {
   value_wo_version = var.secret_version
 }
 
-resource "spotlight_secret" "bot_token" {
+resource "spotlight_secret" "client" {
   count = var.create && var.create_secrets ? 1 : 0
 
-  workspace_id = data.spotlight_workspace.this[0].id
-  name         = var.bot_token_name
-  bindings = [
-    { host = "slack.com", location = "header", name = "authorization", prefix = "Bearer " },
-    { host = "files.slack.com", location = "header", name = "authorization", prefix = "Bearer " },
-  ]
-  value_wo         = var.bot_token
+  workspace_id     = data.spotlight_workspace.this[0].id
+  name             = var.client_secret_name
+  bindings         = [{ host = "slack.com" }]
+  value_wo         = var.client_secret
   value_wo_version = var.secret_version
 }
 
@@ -291,6 +304,18 @@ resource "spotlight_integration" "this" {
     integration = var.integration
     name        = var.name
     logo        = local.logo
+
+    connection = {
+      oauth2 = {
+        authorize      = "https://slack.com/oauth/v2/authorize"
+        token          = "https://slack.com/api/oauth.v2.access"
+        scopes         = local.bot_scopes
+        scopeSeparator = ","
+        pkce           = false
+        identity       = "$${{ response.team.name }}"
+        client         = { id = var.client_id, secret = "secret.${local.client_secret_name}" }
+      }
+    }
 
     webhook = {
       verify = {
@@ -376,7 +401,7 @@ resource "spotlight_integration" "this" {
         request = {
           method = "POST"
           url    = "https://slack.com/api/chat.postMessage"
-          auth   = { secrets = ["secret.${local.bot_token_name}"] }
+          auth   = local.connected
           body   = "$${{ {\"channel\": target.channel, \"text\": ${local.mentions_starter} + ask.body, \"blocks\": ${local.blocks.question}} }}"
           expect = { success = "$${{ response.ok }}" }
           capture = {
@@ -388,7 +413,7 @@ resource "spotlight_integration" "this" {
         request = {
           method = "POST"
           url    = "https://slack.com/api/chat.postMessage"
-          auth   = { secrets = ["secret.${local.bot_token_name}"] }
+          auth   = local.connected
           body   = "$${{ {\"channel\": target.channel, \"thread_ts\": target.thread, \"text\": reply.body, \"blocks\": ${local.blocks.reply}} }}"
           expect = { success = "$${{ response.ok }}" }
         }
@@ -397,7 +422,7 @@ resource "spotlight_integration" "this" {
         request = {
           method = "POST"
           url    = "https://slack.com/api/chat.postMessage"
-          auth   = { secrets = ["secret.${local.bot_token_name}"] }
+          auth   = local.connected
           body   = "$${{ {\"channel\": target.channel, \"thread_ts\": target.thread, \"text\": ${local.mentions_starter} + target.text, \"blocks\": ${local.blocks.notice}} }}"
           expect = { success = "$${{ response.ok }}" }
         }
@@ -406,7 +431,7 @@ resource "spotlight_integration" "this" {
         request = {
           method = "POST"
           url    = "https://slack.com/api/chat.postMessage"
-          auth   = { secrets = ["secret.${local.bot_token_name}"] }
+          auth   = local.connected
           body   = "$${{ {\"channel\": target.channel, \"text\": ${local.request_text}, \"blocks\": ${local.blocks.request}} }}"
           expect = { success = "$${{ response.ok }}" }
         }
@@ -415,7 +440,7 @@ resource "spotlight_integration" "this" {
         request = {
           method = "POST"
           url    = "https://slack.com/api/chat.postMessage"
-          auth   = { secrets = ["secret.${local.bot_token_name}"] }
+          auth   = local.connected
           body   = "$${{ {\"channel\": target.channel, \"text\": notice.headline, \"blocks\": ${local.blocks.raised}} }}"
           expect = { success = "$${{ response.ok }}" }
         }
@@ -424,7 +449,7 @@ resource "spotlight_integration" "this" {
         request = {
           method = "POST"
           url    = "https://slack.com/api/reactions.remove"
-          auth   = { secrets = ["secret.${local.bot_token_name}"] }
+          auth   = local.connected
           body   = "$${{ {\"channel\": target.channel, \"timestamp\": target.message, \"name\": target.emoji} }}"
           expect = { success = "$${{ response.ok || response.error == \"no_reaction\" }}" }
         }
@@ -433,7 +458,7 @@ resource "spotlight_integration" "this" {
         request = {
           method = "POST"
           url    = "https://slack.com/api/reactions.add"
-          auth   = { secrets = ["secret.${local.bot_token_name}"] }
+          auth   = local.connected
           body   = "$${{ {\"channel\": target.channel, \"timestamp\": target.message, \"name\": target.emoji} }}"
           expect = { success = "$${{ response.ok || response.error == \"already_reacted\" }}" }
         }
@@ -442,7 +467,7 @@ resource "spotlight_integration" "this" {
         request = {
           method = "POST"
           url    = "https://slack.com/api/chat.postMessage"
-          auth   = { secrets = ["secret.${local.bot_token_name}"] }
+          auth   = local.connected
           body   = "$${{ {\"channel\": inputs.channel, \"text\": inputs.text} }}"
           expect = { success = "$${{ response.ok }}" }
           capture = {
