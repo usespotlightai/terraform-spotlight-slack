@@ -41,7 +41,8 @@ No resources.
 
 | Name | Description | Type | Default | Required |
 | ---- | ----------- | ---- | ------- | :------: |
-| <a name="input_slack_bot_token"></a> [slack\_bot\_token](#input\_slack\_bot\_token) | The Slack app's bot token. | `string` | n/a | yes |
+| <a name="input_slack_client_id"></a> [slack\_client\_id](#input\_slack\_client\_id) | The Slack app's client ID. | `string` | n/a | yes |
+| <a name="input_slack_client_secret"></a> [slack\_client\_secret](#input\_slack\_client\_secret) | The Slack app's client secret. | `string` | n/a | yes |
 | <a name="input_slack_signing_secret"></a> [slack\_signing\_secret](#input\_slack\_signing\_secret) | The Slack app's signing secret. | `string` | n/a | yes |
 | <a name="input_spotlight_url"></a> [spotlight\_url](#input\_spotlight\_url) | The Spotlight the integration is created in. | `string` | `"https://app.usespotlight.ai"` | no |
 
