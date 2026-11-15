@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.0-rc.12](https://github.com/usespotlightai/terraform-spotlight-slack/compare/v0.1.0-rc.11...v0.1.0-rc.12) (2026-11-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* bot_token and bot_token_name are removed. Give client_id and client_secret, apply, and connect the team account.
+
+### Features
+
+* install the Slack app through OAuth, with the team's own app ([#25](https://github.com/usespotlightai/terraform-spotlight-slack/issues/25)) ([fc9fb16](https://github.com/usespotlightai/terraform-spotlight-slack/commit/fc9fb162f8dadae14a982b6907b19f0422ffb760))
+
 ## [0.1.0-rc.11](https://github.com/usespotlightai/terraform-spotlight-slack/compare/v0.1.0-rc.10...v0.1.0-rc.11) (2026-11-14)
 
 
