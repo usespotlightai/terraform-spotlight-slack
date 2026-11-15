@@ -16,8 +16,7 @@ variables {
   workspace      = "acme"
   team           = "core"
   signing_secret = "8f742231b10e8888abcd99yyyzzz85a5"
-  client_id      = "1234.5678"
-  client_secret  = "slack-client-secret"
+  bot_token      = "xoxb-test"
 }
 
 run "creates_the_secrets_and_the_integration" {
@@ -32,38 +31,8 @@ run "creates_the_secrets_and_the_integration" {
   }
 
   assert {
-    condition     = spotlight_secret.client[0].name == "SLACK_CLIENT_SECRET" && [for each in spotlight_secret.client[0].bindings : each.host] == ["slack.com"]
-    error_message = "The client secret goes in the workspace, as SLACK_CLIENT_SECRET, bound to slack.com, where Spotlight sends it to get the token."
-  }
-
-  assert {
-    condition     = spotlight_integration.this[0].definition.connection.oauth2.authorize == "https://slack.com/oauth/v2/authorize" && spotlight_integration.this[0].definition.connection.oauth2.token == "https://slack.com/api/oauth.v2.access"
-    error_message = "The team connects the Slack app through Slack's OAuth v2 install."
-  }
-
-  assert {
-    condition     = spotlight_integration.this[0].definition.connection.oauth2.client.id == "1234.5678" && spotlight_integration.this[0].definition.connection.oauth2.client.secret == "secret.SLACK_CLIENT_SECRET"
-    error_message = "The connection names the app's own client."
-  }
-
-  assert {
-    condition     = spotlight_integration.this[0].definition.connection.oauth2.scopeSeparator == "," && spotlight_integration.this[0].definition.connection.oauth2.pkce == false
-    error_message = "Slack takes comma-separated scopes and no PKCE."
-  }
-
-  assert {
-    condition     = spotlight_integration.this[0].definition.connection.oauth2.hosts[0] == "files.slack.com" && length(spotlight_integration.this[0].definition.connection.oauth2.hosts) == 1
-    error_message = "The bot token also goes to files.slack.com, where Slack serves the files of a message."
-  }
-
-  assert {
-    condition     = output.callback_url == "https://app.usespotlight.ai/api/integrations/oauth/callback"
-    error_message = "The redirect URL is Spotlight's OAuth callback."
-  }
-
-  assert {
-    condition     = jsondecode(output.manifest).oauth_config.redirect_urls == ["https://app.usespotlight.ai/api/integrations/oauth/callback"] && jsondecode(output.manifest).oauth_config.scopes.bot == spotlight_integration.this[0].definition.connection.oauth2.scopes && jsondecode(output.manifest).settings.event_subscriptions.request_url == output.webhook_url && jsondecode(output.manifest).settings.interactivity.request_url == output.webhook_url
-    error_message = "The manifest names the redirect URL, the scopes the connection asks for, and the webhook for events and buttons."
+    condition     = [for each in spotlight_secret.bot_token[0].bindings : each.host] == ["slack.com", "files.slack.com"] && alltrue([for each in spotlight_secret.bot_token[0].bindings : each.prefix == "Bearer "])
+    error_message = "The bot token goes only to slack.com and files.slack.com, as a bearer token."
   }
 
   assert {
@@ -77,8 +46,8 @@ run "creates_the_secrets_and_the_integration" {
   }
 
   assert {
-    condition     = alltrue([for each in values(spotlight_integration.this[0].definition.actions) : each.request.auth.oauth2.connection == true])
-    error_message = "Every action authenticates with the team's connection."
+    condition     = spotlight_integration.this[0].definition.actions["post-question"].request.auth.secrets == ["secret.SLACK_BOT_TOKEN"] && spotlight_integration.this[0].definition.actions["post-message"].request.auth.secrets == ["secret.SLACK_BOT_TOKEN"]
+    error_message = "Both actions authenticate with the bot token."
   }
 
   assert {
@@ -96,7 +65,7 @@ run "starts_a_chat_from_a_mention" {
   }
 
   assert {
-    condition     = spotlight_integration.this[0].definition.webhook.events[0].lookup.request.url == "https://slack.com/api/users.info" && spotlight_integration.this[0].definition.webhook.events[0].lookup.request.auth.oauth2.connection == true
+    condition     = spotlight_integration.this[0].definition.webhook.events[0].lookup.request.url == "https://slack.com/api/users.info" && spotlight_integration.this[0].definition.webhook.events[0].lookup.request.auth.secrets == ["secret.SLACK_BOT_TOKEN"]
     error_message = "The email comes from users.info, read with the bot token."
   }
 
@@ -139,12 +108,12 @@ run "brings_the_files_of_a_mention_and_a_reply" {
   }
 
   assert {
-    condition     = spotlight_integration.this[0].definition.webhook.events[0].raise.attachments.each == "$${{ has(body.event.files) ? body.event.files.filter(file, has(file.url_private_download) && file.url_private_download.startsWith(\"https://files.slack.com/\")) : [] }}"
+    condition     = spotlight_integration.this[0].definition.webhook.events[0].raise.attachments.each == "$${{ has(body.event.files) ? body.event.files.filter(file, has(file.url_private_download)) : [] }}"
     error_message = "Only the files Slack gives a download address for are brought."
   }
 
   assert {
-    condition     = spotlight_integration.this[0].definition.webhook.events[0].raise.attachments.fetch.method == "GET" && spotlight_integration.this[0].definition.webhook.events[0].raise.attachments.fetch.url == "$${{ file.url_private_download }}" && spotlight_integration.this[0].definition.webhook.events[0].raise.attachments.fetch.auth.oauth2.connection == true
+    condition     = spotlight_integration.this[0].definition.webhook.events[0].raise.attachments.fetch.method == "GET" && spotlight_integration.this[0].definition.webhook.events[0].raise.attachments.fetch.url == "$${{ file.url_private_download }}" && spotlight_integration.this[0].definition.webhook.events[0].raise.attachments.fetch.auth.secrets == ["secret.SLACK_BOT_TOKEN"]
     error_message = "Each file is downloaded with the bot token."
   }
 
@@ -163,7 +132,7 @@ run "shows_the_images_of_a_question_in_it" {
   }
 
   assert {
-    condition     = spotlight_integration.this[0].definition.actions["post-question"].uploads.prepare.url == "https://slack.com/api/files.getUploadURLExternal" && spotlight_integration.this[0].definition.actions["post-question"].uploads.prepare.capture.id == "$${{ response.file_id }}" && spotlight_integration.this[0].definition.actions["post-question"].uploads.prepare.auth.oauth2.connection == true
+    condition     = spotlight_integration.this[0].definition.actions["post-question"].uploads.prepare.url == "https://slack.com/api/files.getUploadURLExternal" && spotlight_integration.this[0].definition.actions["post-question"].uploads.prepare.capture.id == "$${{ response.file_id }}" && spotlight_integration.this[0].definition.actions["post-question"].uploads.prepare.auth.secrets == ["secret.SLACK_BOT_TOKEN"]
     error_message = "An upload asks Slack for an address with the bot token, and keeps the file's ID."
   }
 
@@ -178,7 +147,7 @@ run "shows_the_images_of_a_question_in_it" {
   }
 
   assert {
-    condition     = spotlight_integration.this[0].definition.actions["post-question"].uploads.ready.url == "https://slack.com/api/files.info" && spotlight_integration.this[0].definition.actions["post-question"].uploads.ready.query.file == "$${{ prepared.id }}" && spotlight_integration.this[0].definition.actions["post-question"].uploads.ready.attempts == 10 && spotlight_integration.this[0].definition.actions["post-question"].uploads.ready.auth.oauth2.connection == true && strcontains(spotlight_integration.this[0].definition.actions["post-question"].uploads.ready.expect.success, "response.file.mimetype")
+    condition     = spotlight_integration.this[0].definition.actions["post-question"].uploads.ready.url == "https://slack.com/api/files.info" && spotlight_integration.this[0].definition.actions["post-question"].uploads.ready.query.file == "$${{ prepared.id }}" && spotlight_integration.this[0].definition.actions["post-question"].uploads.ready.attempts == 10 && spotlight_integration.this[0].definition.actions["post-question"].uploads.ready.auth.secrets == ["secret.SLACK_BOT_TOKEN"] && strcontains(spotlight_integration.this[0].definition.actions["post-question"].uploads.ready.expect.success, "response.file.mimetype")
     error_message = "The question waits until Slack has processed each image, since Slack refuses an image block for a file it is still processing."
   }
 
@@ -289,18 +258,18 @@ run "uses_existing_secrets" {
   variables {
     create_secrets      = false
     signing_secret      = null
-    client_secret       = null
+    bot_token           = null
     signing_secret_name = "ACME_SLACK_SIGNING"
-    client_secret_name  = "ACME_SLACK_CLIENT"
+    bot_token_name      = "ACME_SLACK_BOT"
   }
 
   assert {
-    condition     = length(spotlight_secret.signing) == 0 && length(spotlight_secret.client) == 0
+    condition     = length(spotlight_secret.signing) == 0 && length(spotlight_secret.bot_token) == 0
     error_message = "No secrets are created."
   }
 
   assert {
-    condition     = spotlight_integration.this[0].definition.webhook.verify.hmac.secret == "secret.ACME_SLACK_SIGNING" && spotlight_integration.this[0].definition.connection.oauth2.client.secret == "secret.ACME_SLACK_CLIENT"
+    condition     = spotlight_integration.this[0].definition.webhook.verify.hmac.secret == "secret.ACME_SLACK_SIGNING" && spotlight_integration.this[0].definition.actions["post-message"].request.auth.secrets == ["secret.ACME_SLACK_BOT"]
     error_message = "The integration names the existing secrets."
   }
 }
@@ -309,25 +278,17 @@ run "creates_nothing_when_disabled" {
   command = plan
 
   variables {
-    create         = false
-    client_id      = null
-    client_secret  = null
-    signing_secret = null
+    create = false
   }
 
   assert {
-    condition     = length(spotlight_integration.this) == 0 && length(spotlight_secret.signing) == 0 && length(spotlight_secret.client) == 0
+    condition     = length(spotlight_integration.this) == 0 && length(spotlight_secret.signing) == 0 && length(spotlight_secret.bot_token) == 0
     error_message = "A disabled module creates no resources."
   }
 
   assert {
-    condition     = output.id == null && output.webhook_url == null && output.callback_url == null && output.tools == {}
+    condition     = output.id == null && output.webhook_url == null && output.tools == {}
     error_message = "A disabled module's resource outputs are null."
-  }
-
-  assert {
-    condition     = jsondecode(output.manifest).oauth_config.redirect_urls == ["https://app.usespotlight.ai/api/integrations/oauth/callback"]
-    error_message = "The manifest is known before the app exists, so you can create the app first."
   }
 }
 
@@ -335,20 +296,10 @@ run "refuses_missing_secret_values" {
   command = plan
 
   variables {
-    client_secret = null
+    bot_token = null
   }
 
-  expect_failures = [var.client_secret]
-}
-
-run "refuses_a_missing_client_id" {
-  command = plan
-
-  variables {
-    client_id = null
-  }
-
-  expect_failures = [var.client_id]
+  expect_failures = [var.bot_token]
 }
 
 run "refuses_an_integration_name_with_a_dash" {
