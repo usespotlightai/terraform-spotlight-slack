@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.0-rc.13](https://github.com/usespotlightai/terraform-spotlight-slack/compare/v0.1.0-rc.12...v0.1.0-rc.13) (2026-11-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* **SPO-279:** go back to the bot token, and defer the OAuth install ([#27](https://github.com/usespotlightai/terraform-spotlight-slack/issues/27))
+
+### Features
+
+* **SPO-279:** go back to the bot token, and defer the OAuth install ([#27](https://github.com/usespotlightai/terraform-spotlight-slack/issues/27)) ([55d1122](https://github.com/usespotlightai/terraform-spotlight-slack/commit/55d11223abe4301e245be8cdacea8ec7f8bf30d6))
+
 ## [0.1.0-rc.12](https://github.com/usespotlightai/terraform-spotlight-slack/compare/v0.1.0-rc.11...v0.1.0-rc.12) (2026-11-15)
 
 

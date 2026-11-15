@@ -47,7 +47,7 @@ terraform {
 
 module "slack" {
   source  = "usespotlightai/slack/spotlight"
-  version = "0.1.0-rc.12" # x-release-please-version
+  version = "0.1.0-rc.13" # x-release-please-version
 
   workspace = "acme"
   team      = "core"
