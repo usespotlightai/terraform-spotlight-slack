@@ -38,7 +38,7 @@ variable "logo" {
 }
 
 variable "spotlight_url" {
-  description = "The address of your Spotlight, used only for the `webhook_url` output. Change it for a self-hosted Spotlight."
+  description = "The address of your Spotlight, used only for the `webhook_url`, `callback_url` and `manifest` outputs. Change it for a self-hosted Spotlight."
   type        = string
   default     = "https://app.usespotlight.ai"
 }
@@ -132,8 +132,19 @@ variable "failed_reaction" {
   }
 }
 
+variable "client_id" {
+  description = "The client ID of your Slack app, under Basic Information › App Credentials."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = !var.create || var.client_id != null
+    error_message = "Give client_id, the client ID of your Slack app."
+  }
+}
+
 variable "create_secrets" {
-  description = "Whether the module creates the two secrets from `signing_secret` and `bot_token`. False uses the workspace secrets named `signing_secret_name` and `bot_token_name`, which you keep yourself; the bot token's secret must then be bound to `slack.com` and `files.slack.com` in the `authorization` header, with the prefix `Bearer `."
+  description = "Whether the module creates the two secrets from `signing_secret` and `client_secret`. False uses the workspace secrets named `signing_secret_name` and `client_secret_name`, which you keep yourself. Bind the client secret to `slack.com`."
   type        = bool
   default     = true
 }
@@ -146,21 +157,21 @@ variable "signing_secret" {
   ephemeral   = true
 }
 
-variable "bot_token" {
-  description = "The Slack app's bot token (`xoxb-`). Needed when `create_secrets` is true."
+variable "client_secret" {
+  description = "The Slack app's client secret. Needed when `create_secrets` is true."
   type        = string
   default     = null
   sensitive   = true
   ephemeral   = true
 
   validation {
-    condition     = !var.create_secrets || (var.signing_secret != null && var.bot_token != null)
-    error_message = "Give signing_secret and bot_token, or set create_secrets to false."
+    condition     = !var.create || !var.create_secrets || (var.signing_secret != null && var.client_secret != null)
+    error_message = "Give signing_secret and client_secret, or set create_secrets to false."
   }
 }
 
 variable "secret_version" {
-  description = "Change it when `signing_secret` or `bot_token` changes, so Terraform sends the new values to Spotlight."
+  description = "Change it when `signing_secret` or `client_secret` changes, so Terraform sends the new values to Spotlight."
   type        = number
   default     = 1
 }
@@ -171,8 +182,8 @@ variable "signing_secret_name" {
   default     = "SLACK_SIGNING_SECRET"
 }
 
-variable "bot_token_name" {
-  description = "The name of the workspace secret that holds the bot token."
+variable "client_secret_name" {
+  description = "The name of the workspace secret that holds the client secret."
   type        = string
-  default     = "SLACK_BOT_TOKEN"
+  default     = "SLACK_CLIENT_SECRET"
 }
