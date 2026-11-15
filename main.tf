@@ -313,6 +313,7 @@ resource "spotlight_integration" "this" {
         scopeSeparator = ","
         pkce           = false
         identity       = "$${{ response.team.name }}"
+        hosts          = ["files.slack.com"]
         client         = { id = var.client_id, secret = "secret.${local.client_secret_name}" }
       }
     }

@@ -52,6 +52,11 @@ run "creates_the_secrets_and_the_integration" {
   }
 
   assert {
+    condition     = spotlight_integration.this[0].definition.connection.oauth2.hosts[0] == "files.slack.com" && length(spotlight_integration.this[0].definition.connection.oauth2.hosts) == 1
+    error_message = "The bot token also goes to files.slack.com, where Slack serves the files of a message."
+  }
+
+  assert {
     condition     = output.callback_url == "https://app.usespotlight.ai/api/integrations/oauth/callback"
     error_message = "The redirect URL is Spotlight's OAuth callback."
   }
