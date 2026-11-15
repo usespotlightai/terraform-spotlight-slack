@@ -15,7 +15,7 @@ output "tools" {
 
 output "webhook_url" {
   description = "The request URL to give in the Slack app's event subscriptions."
-  value       = var.create ? local.webhook_url : null
+  value       = var.create ? "${trimsuffix(var.spotlight_url, "/")}/api/webhooks/w/${var.workspace}/t/${var.team}/${var.integration}" : null
 }
 
 output "happenings" {
@@ -32,39 +32,7 @@ output "signing_secret_name" {
   value       = var.create ? local.signing_secret_name : null
 }
 
-output "client_secret_name" {
-  description = "The name of the workspace secret that holds the client secret."
-  value       = var.create ? local.client_secret_name : null
-}
-
-output "callback_url" {
-  description = "The redirect URL to give your Slack app, under OAuth & Permissions."
-  value       = var.create ? local.callback_url : null
-}
-
-output "manifest" {
-  description = "A Slack app manifest, as JSON, with the redirect URL, the bot scopes, the events and the interactivity that the integration needs. Paste it when you create the app from a manifest, or on the app's App Manifest page. Known also with `create` false, so you can create the app first."
-  value = jsonencode({
-    display_information = { name = var.name }
-    features = {
-      bot_user = { display_name = var.name, always_online = true }
-    }
-    oauth_config = {
-      redirect_urls = [local.callback_url]
-      scopes        = { bot = local.bot_scopes }
-    }
-    settings = {
-      event_subscriptions = {
-        request_url = local.webhook_url
-        bot_events  = ["app_mention", "message.channels"]
-      }
-      interactivity = {
-        is_enabled  = true
-        request_url = local.webhook_url
-      }
-      org_deploy_enabled     = false
-      socket_mode_enabled    = false
-      token_rotation_enabled = false
-    }
-  })
+output "bot_token_name" {
+  description = "The name of the workspace secret that holds the bot token."
+  value       = var.create ? local.bot_token_name : null
 }

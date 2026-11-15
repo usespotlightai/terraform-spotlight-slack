@@ -9,9 +9,8 @@ module "slack" {
   team          = "core"
   spotlight_url = var.spotlight_url
 
-  client_id      = var.slack_client_id
-  client_secret  = var.slack_client_secret
   signing_secret = var.slack_signing_secret
+  bot_token      = var.slack_bot_token
 
   routes = {
     delivery = "C024BE91L"
