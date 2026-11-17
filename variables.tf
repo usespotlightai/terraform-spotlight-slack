@@ -55,7 +55,7 @@ variable "harness" {
 }
 
 variable "notify" {
-  description = "What the app posts to Slack. `questions` posts the questions of tasks. `finished` says in the thread of a task that the task is complete. `inbox_requests` posts the requests that wait for a person in the inbox, such as a run to grade, proposed memories or a station alert, to the channel of their task, or else to `routes[line]`. `notices` posts the notices of the team that are addressed to nobody, such as a config pull request that Spotlight opened, to `notices_channel`."
+  description = "What the app posts to Slack. `questions` posts the questions of tasks. `finished` says in the thread of a task that the task is complete. `inbox_requests` posts the requests that wait for a person in the inbox, such as proposed memories or a station alert, to the channel of their task, or else to `routes[line]`. `notices` posts the notices of the team that are addressed to nobody, such as a config pull request that Spotlight opened, to `notices_channel`."
   type        = set(string)
   default     = ["questions", "finished"]
 

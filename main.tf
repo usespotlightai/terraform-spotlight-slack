@@ -115,7 +115,7 @@ locals {
     length(var.routes) > 0 ? { routes = var.routes } : {},
   )
 
-  request_phrase = "(request.form == \"memories\" ? \"A run proposed memories for the team.\" : request.form == \"alert\" ? \"Station alert fired.\" : request.form == \"grade\" ? \"A judged run needs your grade. Grades check the judge.\" : \"A request waits for you in Spotlight.\")"
+  request_phrase = "(request.form == \"memories\" ? \"A run proposed memories for the team.\" : request.form == \"alert\" ? \"Station alert fired.\" : \"A request waits for you in Spotlight.\")"
   request_text   = "(${local.request_phrase} + \" Task: “\" + task.title + \"”.\")"
 
   inbox_on = merge(
