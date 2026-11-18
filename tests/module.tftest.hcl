@@ -433,7 +433,7 @@ run "names_the_channel_of_the_task_and_the_routes_for_inbox_requests" {
   }
 
   assert {
-    condition     = strcontains(spotlight_integration.this[0].definition.actions["post-request"].request.body, "request.form == \"grade\"") && strcontains(spotlight_integration.this[0].definition.actions["post-request"].request.body, "request.link")
+    condition     = strcontains(spotlight_integration.this[0].definition.actions["post-request"].request.body, "request.form == \"alert\"") && strcontains(spotlight_integration.this[0].definition.actions["post-request"].request.body, "request.link")
     error_message = "The request says what it asks for and links to it."
   }
 
