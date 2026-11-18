@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0-rc.14](https://github.com/usespotlightai/terraform-spotlight-slack/compare/v0.1.0-rc.13...v0.1.0-rc.14) (2026-11-18)
+
+
+### Bug Fixes
+
+* **SPO-296:** stop naming grade requests, which Spotlight no longer opens ([#29](https://github.com/usespotlightai/terraform-spotlight-slack/issues/29)) ([55536eb](https://github.com/usespotlightai/terraform-spotlight-slack/commit/55536eb9ed608f3609c83c85a07d774ef61ab250))
+
 ## [0.1.0-rc.13](https://github.com/usespotlightai/terraform-spotlight-slack/compare/v0.1.0-rc.12...v0.1.0-rc.13) (2026-11-15)
 
 
